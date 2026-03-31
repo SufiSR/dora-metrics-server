@@ -24,6 +24,20 @@ from app.services.jira_bug_collector import collect_jira_production_bugs
 logger = logging.getLogger(__name__)
 
 
+def _normalize_version_key(value: str) -> set[str]:
+    normalized = value.strip().lower()
+    if not normalized:
+        return set()
+    candidates = {normalized}
+    if normalized.startswith("v"):
+        without_v = normalized[1:]
+        if without_v:
+            candidates.add(without_v)
+    else:
+        candidates.add(f"v{normalized}")
+    return candidates
+
+
 def _run_with_session(
     session_factory: Callable[[], Session], fn: Callable[[Session], int]
 ) -> int:
@@ -70,57 +84,86 @@ def _finish_nightly_sync_log(
 def _map_bugs_to_releases(db: Session) -> int:
     db.execute(delete(BugRelease))
     releases = db.execute(select(Release)).scalars().all()
-    by_tag = {release.tag_name.lower(): release for release in releases if release.tag_name}
+    by_tag: dict[str, list[Release]] = {}
+    for release in releases:
+        if not release.tag_name:
+            continue
+        for key in _normalize_version_key(release.tag_name):
+            by_tag.setdefault(key, []).append(release)
     processed = 0
+    unmatched_versions = 0
 
     bugs = db.execute(select(ProductionBug)).scalars()
     for bug in bugs:
-        affects_versions = [value.lower() for value in (bug.affects_versions or [])]
+        linked_release_ids: set[int] = set()
+        affects_versions = [value for value in (bug.affects_versions or []) if value]
         for version in affects_versions:
-            release = by_tag.get(version)
-            if release is None:
+            candidate_releases: list[Release] = []
+            for key in _normalize_version_key(version):
+                candidate_releases.extend(by_tag.get(key, []))
+            if not candidate_releases:
+                unmatched_versions += 1
                 continue
-            db.add(BugRelease(bug_id=bug.id, release_id=release.id))
-            processed += 1
+            for release in candidate_releases:
+                if release.id in linked_release_ids:
+                    continue
+                linked_release_ids.add(release.id)
+                db.add(BugRelease(bug_id=bug.id, release_id=release.id))
+                processed += 1
     db.commit()
+    logger.info(
+        "map_bugs_to_releases completed",
+        extra={"links_created": processed, "unmatched_versions": unmatched_versions},
+    )
     return processed
 
 
-def _resolve_mttr_alpha_fix_releases(db: Session) -> int:
+def _resolve_mttr_alpha_fix_releases(db: Session, config: ConfigurationSchema) -> int:
     processed = 0
-    release_by_tag = {
-        release.tag_name.lower(): release
-        for release in db.execute(select(Release)).scalars()
-        if release.tag_name
-    }
-    mr_by_jira_key = {
-        mr.jira_key: mr for mr in db.execute(select(MergeRequest)).scalars() if mr.jira_key
+    release_by_tag: dict[str, list[Release]] = {}
+    for release in db.execute(select(Release)).scalars():
+        if not release.tag_name:
+            continue
+        for key in _normalize_version_key(release.tag_name):
+            release_by_tag.setdefault(key, []).append(release)
+    mr_by_jira_key: dict[str, MergeRequest] = {}
+    for mr in db.execute(select(MergeRequest)).scalars():
+        if not mr.jira_key or mr.first_customer_tag_date is None:
+            continue
+        current = mr_by_jira_key.get(mr.jira_key)
+        if current is None or mr.first_customer_tag_date < current.first_customer_tag_date:
+            mr_by_jira_key[mr.jira_key] = mr
+
+    eligible_priorities = {
+        priority.strip().lower()
+        for priority in config.jira.mttr_alpha_priorities
+        if priority and priority.strip()
     }
 
     bugs = db.execute(select(ProductionBug)).scalars()
     for bug in bugs:
-        if not bug.healthy or bug.priority not in {"Critical", "Blocker"}:
+        bug_priority = (bug.priority or "").lower()
+        if not bug.healthy or bug_priority not in eligible_priorities:
             continue
 
         fix_release_tag = None
         fix_release_date = None
         resolution_path = None
         merge_request = mr_by_jira_key.get(bug.jira_key)
-        if merge_request and merge_request.first_customer_tag_date is not None:
+        if merge_request is not None:
             fix_release_tag = merge_request.first_customer_tag
             fix_release_date = merge_request.first_customer_tag_date
-            resolution_path = "mr"
+            resolution_path = "mr_jira_key"
         else:
             for version in bug.fix_versions or []:
-                release = release_by_tag.get(version.lower()) or release_by_tag.get(
-                    version.lower().lstrip("v")
-                )
-                if release is None:
-                    continue
-                if fix_release_date is None or release.committed_at < fix_release_date:
-                    fix_release_tag = release.tag_name
-                    fix_release_date = release.committed_at
-                    resolution_path = "fix_version"
+                candidate_releases: list[Release] = []
+                for key in _normalize_version_key(version):
+                    candidate_releases.extend(release_by_tag.get(key, []))
+                for release in candidate_releases:
+                    if fix_release_date is None or release.committed_at < fix_release_date:
+                        fix_release_tag = release.tag_name
+                        fix_release_date = release.committed_at
+                        resolution_path = "fix_version"
 
         bug.first_fix_release_tag = fix_release_tag
         bug.first_fix_release_date = fix_release_date
@@ -142,6 +185,7 @@ def _compute_lead_post_production(db: Session) -> int:
     }
     for merge_request in db.execute(select(MergeRequest)).scalars():
         if not merge_request.jira_key:
+            merge_request.lead_post_production_hours = None
             continue
         bug = bug_by_jira_key.get(merge_request.jira_key)
         if bug is None or bug.ready_for_qa_at is None or merge_request.merged_at < bug.ready_for_qa_at:
@@ -221,7 +265,10 @@ def run_nightly_sync(
             records_processed += _run_with_session(session_factory, _map_bugs_to_releases)
 
         if gitlab_ok and jira_ok:
-            records_processed += _run_with_session(session_factory, _resolve_mttr_alpha_fix_releases)
+            records_processed += _run_with_session(
+                session_factory,
+                lambda db: _resolve_mttr_alpha_fix_releases(db, effective_config),
+            )
             records_processed += _run_with_session(session_factory, _compute_lead_post_production)
         else:
             logger.info("nightly_sync skipped mttr_alpha and lead_post_production due to partial failure")

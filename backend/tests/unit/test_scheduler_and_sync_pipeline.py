@@ -36,7 +36,9 @@ def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(m
     )
     monkeypatch.setattr(sync_pipeline, "_map_bugs_to_releases", lambda _db: order.append("links") or 12)
     monkeypatch.setattr(
-        sync_pipeline, "_resolve_mttr_alpha_fix_releases", lambda _db: order.append("mttr_alpha") or 13
+        sync_pipeline,
+        "_resolve_mttr_alpha_fix_releases",
+        lambda _db, _config: order.append("mttr_alpha") or 13,
     )
     monkeypatch.setattr(
         sync_pipeline, "_compute_lead_post_production", lambda _db: order.append("lead_post_prod") or 14
@@ -68,7 +70,9 @@ def test_run_nightly_sync_partial_failure_skips_mttr_and_still_snapshots(monkeyp
     )
     monkeypatch.setattr(sync_pipeline, "_map_bugs_to_releases", lambda _db: order.append("links") or 3)
     monkeypatch.setattr(
-        sync_pipeline, "_resolve_mttr_alpha_fix_releases", lambda _db: order.append("mttr_alpha") or 99
+        sync_pipeline,
+        "_resolve_mttr_alpha_fix_releases",
+        lambda _db, _config: order.append("mttr_alpha") or 99,
     )
     monkeypatch.setattr(
         sync_pipeline, "_compute_lead_post_production", lambda _db: order.append("lead_post_prod") or 99

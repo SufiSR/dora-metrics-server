@@ -26,6 +26,7 @@ class JiraConfig(BaseModel):
     excluded_projects: list[str] = Field(default_factory=list)
     ready_for_qa_status_names: list[str] = Field(default_factory=lambda: ["Ready for QA"])
     production_bug_indicator_cf_ids: list[str] = Field(default_factory=list)
+    mttr_alpha_priorities: list[str] = Field(default_factory=lambda: ["Critical", "Blocker"])
 
 
 class NotificationsConfig(BaseModel):

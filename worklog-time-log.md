@@ -27,6 +27,12 @@ Record only actual active work time.
 | DEVOPS-436 | jira-update | 2026-03-31 16:03 | 2026-03-31 16:04 | 1m | Committed and pushed DEVOPS-436 implementation to origin/main |
 | DEVOPS-436 | jira-update | 2026-03-31 16:04 | 2026-03-31 16:05 | 1m | Updated Jira solution field and added implementation considerations comment |
 | DEVOPS-436 | jira-update | 2026-03-31 16:05 | 2026-03-31 16:05 | 1m | Close transition requested explicit log-work; prepared transition-compliant closure update |
+| DEVOPS-437 | planning | 2026-03-31 16:15 | 2026-03-31 16:16 | 1m | Reviewed implementation state/spec alignment, prepared extensive issue rewrite, and logged approved plan + estimate in Jira |
+| DEVOPS-437 | implementation | 2026-03-31 16:16 | 2026-03-31 16:19 | 3m | Implemented Story 7 derivation updates (config-driven priorities, normalized bug-release/MTTR matching, path labels) and added tests |
+| DEVOPS-437 | jira-update | 2026-03-31 16:24 | 2026-03-31 16:24 | 1m | Transitioned status from Refinement -> Ready for development -> Development (In Progress) and reconciled worklog tracking |
+| DEVOPS-437 | implementation | 2026-03-31 16:25 | 2026-03-31 16:27 | 2m | Added hardening for version normalization edge cases, deterministic MR selection for MTTR path A, stale lead-post-production clearing, and extra regression tests |
+| DEVOPS-437 | validation | 2026-03-31 16:27 | 2026-03-31 16:28 | 1m | Re-ran Story 7 and scheduler tests after hardening (9 passed) and checked lints |
+| DEVOPS-437 | jira-update | 2026-03-31 16:34 | 2026-03-31 16:35 | 1m | Added Jira progress comment with acceptance-criteria gap check and deferred-scope notes |
 
 ## Active session template
 
