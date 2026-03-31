@@ -14,5 +14,6 @@ python-dotenv
 # Development and quality tooling
 pytest
 pytest-asyncio
+testcontainers[postgresql]
 ruff
 mypy
