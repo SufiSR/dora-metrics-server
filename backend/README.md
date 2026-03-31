@@ -22,3 +22,5 @@ mypy app
 - Dependencies are managed with `requirements.txt` (no Poetry).
 - Linting and static typing are configured in `pyproject.toml`.
 - Configuration schema baseline is in `app/config_schema.py`.
+- Runtime config load order is: defaults -> `configuration.yml` -> `app_configuration` -> env overrides.
+- Collector runs load effective config via `app/services/config_service.py`; after `PATCH /admin/config`, trigger a reload in-process or restart the backend process.

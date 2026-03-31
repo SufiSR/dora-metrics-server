@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config_schema import ConfigurationSchema
-from app.models.app_configuration import AppConfiguration
 from app.models.issue_worklog import IssueWorklog
 from app.models.production_bug import ProductionBug
 from app.models.sync_log import SyncLog
@@ -381,20 +380,9 @@ def _build_bug_jql(lookback_from: datetime, excluded_projects: list[str]) -> str
     return jql
 
 
-def _merged_jira_settings(db: Session, defaults: ConfigurationSchema) -> tuple[list[str], list[str]]:
+def _merged_jira_settings(defaults: ConfigurationSchema) -> tuple[list[str], list[str]]:
     excluded_projects = list(defaults.jira.excluded_projects)
     ready_status_names = list(defaults.jira.ready_for_qa_status_names)
-    app_config = db.get(AppConfiguration, 1)
-    if app_config and isinstance(app_config.settings_json, dict):
-        settings = app_config.settings_json
-        jira_settings = settings.get("jira")
-        if isinstance(jira_settings, dict):
-            nested_excluded = jira_settings.get("excluded_projects")
-            if isinstance(nested_excluded, list):
-                excluded_projects = _to_string_list(nested_excluded)
-            nested_ready = jira_settings.get("ready_for_qa_status_names")
-            if isinstance(nested_ready, list):
-                ready_status_names = _to_string_list(nested_ready)
     return excluded_projects, ready_status_names
 
 
@@ -478,7 +466,7 @@ def collect_jira_production_bugs(
     db.add(sync_log)
     db.flush()
 
-    excluded_projects, ready_status_names = _merged_jira_settings(db, config)
+    excluded_projects, ready_status_names = _merged_jira_settings(config)
     lookback_from = _lookback_from(config.backend.lookback_days)
     jql = _build_bug_jql(lookback_from, excluded_projects)
     fields = [

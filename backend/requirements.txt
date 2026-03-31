@@ -10,6 +10,7 @@ pydantic
 pydantic-settings
 pyyaml
 python-dotenv
+cryptography
 
 # Development and quality tooling
 pytest

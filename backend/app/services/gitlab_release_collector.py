@@ -19,7 +19,6 @@ from tenacity import (
 )
 
 from app.config_schema import ConfigurationSchema
-from app.models.app_configuration import AppConfiguration
 from app.models.merge_request import MergeRequest
 from app.models.release import Release
 from app.models.repository import Repository
@@ -94,38 +93,11 @@ def _is_customer_release(tag_name: str | None, marker_re: re.Pattern[str]) -> bo
 
 
 def _merged_gitlab_settings(
-    db: Session,
     defaults: ConfigurationSchema,
 ) -> tuple[list[str], list[str], list[str]]:
     project_paths = list(defaults.gitlab.project_paths)
     target_branches = [branch.strip() for branch in defaults.gitlab.target_branches if branch.strip()]
     markers = [m.strip().lower() for m in defaults.gitlab.non_customer_release_markers if m.strip()]
-
-    app_config = db.get(AppConfiguration, 1)
-    if app_config and isinstance(app_config.settings_json, dict):
-        settings = app_config.settings_json
-        configured_paths = settings.get("gitlab_project_paths")
-        if isinstance(configured_paths, list):
-            project_paths = [str(path).strip() for path in configured_paths if str(path).strip()]
-        gitlab_settings = settings.get("gitlab")
-        if isinstance(gitlab_settings, dict):
-            nested_paths = gitlab_settings.get("project_paths")
-            if isinstance(nested_paths, list):
-                project_paths = [str(path).strip() for path in nested_paths if str(path).strip()]
-            nested_target_branches = gitlab_settings.get("target_branches")
-            if isinstance(nested_target_branches, list):
-                target_branches = [
-                    str(branch).strip()
-                    for branch in nested_target_branches
-                    if str(branch).strip()
-                ]
-            configured_markers = gitlab_settings.get("non_customer_release_markers")
-            if isinstance(configured_markers, list):
-                markers = [
-                    str(marker).strip().lower()
-                    for marker in configured_markers
-                    if str(marker).strip()
-                ]
 
     if not markers:
         markers = list(_DEFAULT_MARKERS)
@@ -611,7 +583,7 @@ def collect_gitlab_tags_and_releases(
     db.add(sync_log)
     db.flush()
 
-    project_paths, target_branches, markers = _merged_gitlab_settings(db, config)
+    project_paths, target_branches, markers = _merged_gitlab_settings(config)
     marker_re = _markers_regex(markers)
     processed = 0
 

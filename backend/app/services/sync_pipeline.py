@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Callable
@@ -10,7 +9,6 @@ import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.config import load_configuration
 from app.config_schema import ConfigurationSchema
 from app.database import SessionLocal
 from app.models.bug_release import BugRelease
@@ -18,6 +16,7 @@ from app.models.merge_request import MergeRequest
 from app.models.production_bug import ProductionBug
 from app.models.release import Release
 from app.models.sync_log import SyncLog
+from app.services.config_service import load_runtime_config
 from app.services.gitlab_release_collector import collect_gitlab_tags_and_releases
 from app.services.jira_bug_collector import collect_jira_production_bugs
 
@@ -221,9 +220,10 @@ def run_nightly_sync(
     config: ConfigurationSchema | None = None,
     session_factory: Callable[[], Session] = SessionLocal,
 ) -> dict[str, str | int]:
-    effective_config = config or load_configuration()
-    gitlab_token = os.getenv("GITLAB_TOKEN", "")
-    jira_token = os.getenv("JIRA_TOKEN", "")
+    runtime_config = load_runtime_config()
+    effective_config = config or runtime_config.settings
+    gitlab_token = runtime_config.gitlab_token
+    jira_token = runtime_config.jira_token
     webhook_url = effective_config.notifications.webhook_url
     nightly_log_id = _create_nightly_sync_log(session_factory)
 
