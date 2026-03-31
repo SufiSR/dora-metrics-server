@@ -12,6 +12,8 @@ Record only actual active work time.
 | DEVOPS-433 | implementation | 2026-03-31 14:34 | 2026-03-31 14:35 | 1m | Added MR collection, Jira key extraction, dedupe, and unit tests |
 | DEVOPS-433 | jira-update | 2026-03-31 14:36 | 2026-03-31 14:37 | 1m | Added Jira plan/estimate/worklog, prepared solution and status transition |
 | DEVOPS-433 | jira-update | 2026-03-31 14:38 | 2026-03-31 14:38 | 1m | Updated solution field and executed Done transition with required log-work entry |
+| DEVOPS-435 | implementation | 2026-03-31 14:52 | 2026-03-31 14:58 | 6m | Implemented MR first-commit and customer-tag mapping logic with unit tests |
+| DEVOPS-435 | validation | 2026-03-31 14:59 | 2026-03-31 15:00 | 1m | Added Jira progress comment and reran backend unit tests (12 passed) |
 
 ## Active session template
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
+from time import sleep
 from typing import Any
 from urllib.parse import quote
 
@@ -63,6 +65,11 @@ def _parse_dt(value: str | None) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)  # noqa: UP017
     return parsed
+
+
+def _hours_between(start: datetime, end: datetime) -> Decimal:
+    hours = (end - start).total_seconds() / 3600.0
+    return Decimal(str(hours)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _is_retryable_http_exception(exc: BaseException) -> bool:
@@ -155,7 +162,7 @@ def _parse_merge_request(raw: dict[str, Any]) -> dict[str, Any] | None:
     merged_at = _parse_dt(str(raw.get("merged_at") or ""))
     created_at = _parse_dt(str(raw.get("created_at") or ""))
     target_branch = str(raw.get("target_branch") or "").strip()
-    mr_id = raw.get("id")
+    mr_id = raw.get("iid") or raw.get("id")
     if not isinstance(mr_id, int) or merged_at is None or created_at is None or not target_branch:
         return None
 
@@ -313,6 +320,55 @@ class GitLabTagsClient:
 
         return merge_requests
 
+    def list_merge_request_commits(
+        self,
+        project_path: str,
+        *,
+        merge_request_iid: int,
+        per_page: int = 100,
+    ) -> list[dict[str, Any]]:
+        encoded = quote(project_path.strip(), safe="")
+        url = f"{self.api_root}/projects/{encoded}/merge_requests/{merge_request_iid}/commits"
+        page = 1
+        commits: list[dict[str, Any]] = []
+        while True:
+            payload = self._get_json(url, params={"page": page, "per_page": per_page})
+            if not isinstance(payload, list):
+                raise TypeError(
+                    f"Unexpected MR commits response for {project_path}#{merge_request_iid}"
+                )
+            commits.extend(item for item in payload if isinstance(item, dict))
+            if len(payload) < per_page:
+                break
+            page += 1
+        return commits
+
+    def list_commit_tag_refs(
+        self,
+        project_path: str,
+        *,
+        commit_sha: str,
+        per_page: int = 100,
+    ) -> list[dict[str, Any]]:
+        encoded = quote(project_path.strip(), safe="")
+        encoded_sha = quote(commit_sha.strip(), safe="")
+        url = f"{self.api_root}/projects/{encoded}/repository/commits/{encoded_sha}/refs"
+        page = 1
+        refs: list[dict[str, Any]] = []
+        while True:
+            payload = self._get_json(
+                url, params={"type": "tag", "page": page, "per_page": per_page}
+            )
+            if not isinstance(payload, list):
+                raise TypeError(
+                    f"Unexpected commit refs response for {project_path}#{commit_sha}"
+                )
+            refs.extend(item for item in payload if isinstance(item, dict))
+            if len(payload) < per_page:
+                break
+            page += 1
+        return refs
+
 
 def _upsert_repository(db: Session, project_path: str, project: dict[str, Any]) -> Repository:
     gitlab_id = int(project["id"])
@@ -426,12 +482,129 @@ def _upsert_merge_request(
     merge_request.jira_key_source = payload["jira_key_source"]
 
 
+def _apply_cooldown(seconds: float) -> None:
+    if seconds > 0:
+        sleep(seconds)
+
+
+def _sync_first_commit_timestamps(
+    db: Session,
+    gitlab: GitLabTagsClient,
+    *,
+    repository: Repository,
+    project_path: str,
+    cooldown_seconds: float,
+    per_page: int,
+) -> int:
+    updated = 0
+    merge_requests = db.execute(
+        select(MergeRequest).where(
+            MergeRequest.repository_id == repository.id,
+            MergeRequest.first_commit_at.is_(None),
+        )
+    ).scalars()
+    for merge_request in merge_requests:
+        commits = gitlab.list_merge_request_commits(
+            project_path,
+            merge_request_iid=int(merge_request.gitlab_mr_id),
+            per_page=per_page,
+        )
+        committed_dates = [
+            parsed
+            for parsed in (_parse_dt(str(item.get("committed_date") or "")) for item in commits)
+            if parsed is not None
+        ]
+        if committed_dates:
+            merge_request.first_commit_at = min(committed_dates)
+            updated += 1
+        _apply_cooldown(cooldown_seconds)
+    return updated
+
+
+def _map_merge_requests_to_customer_releases(
+    db: Session,
+    gitlab: GitLabTagsClient,
+    *,
+    repository: Repository,
+    project_path: str,
+    cooldown_seconds: float,
+    per_page: int,
+) -> int:
+    mapped = 0
+    releases = db.execute(
+        select(Release).where(
+            Release.repository_id == repository.id,
+            Release.customer_release.is_(True),
+        )
+    ).scalars()
+    releases_by_tag = {release.tag_name: release for release in releases}
+    merge_requests = db.execute(
+        select(MergeRequest).where(MergeRequest.repository_id == repository.id)
+    ).scalars()
+
+    for merge_request in merge_requests:
+        if not merge_request.effective_commit_sha:
+            merge_request.lead_time_match_status = "no_effective_commit_sha"
+            continue
+
+        refs = gitlab.list_commit_tag_refs(
+            project_path,
+            commit_sha=merge_request.effective_commit_sha,
+            per_page=per_page,
+        )
+        _apply_cooldown(cooldown_seconds)
+        if not refs:
+            merge_request.lead_time_match_status = "no_tag_ref_found"
+            continue
+
+        matching_releases: list[Release] = []
+        for ref in refs:
+            ref_type = str(ref.get("type") or "").strip()
+            if ref_type and ref_type != "tag":
+                continue
+            tag_name = str(ref.get("name") or "").strip()
+            if not tag_name:
+                continue
+            release = releases_by_tag.get(tag_name)
+            if release is not None and release.committed_at is not None:
+                matching_releases.append(release)
+
+        if not matching_releases:
+            merge_request.lead_time_match_status = "no_customer_tag_ref_found"
+            continue
+
+        eligible_releases = [
+            release for release in matching_releases if release.committed_at >= merge_request.merged_at
+        ]
+        if not eligible_releases:
+            merge_request.lead_time_match_status = "no_customer_tag_after_merge"
+            continue
+
+        first_release = min(eligible_releases, key=lambda rel: rel.committed_at)
+        merge_request.first_customer_tag = first_release.tag_name
+        merge_request.first_customer_tag_date = first_release.committed_at
+        merge_request.release_wait_time_hours = _hours_between(
+            merge_request.merged_at, first_release.committed_at
+        )
+        if merge_request.first_commit_at is not None:
+            merge_request.lead_time_hours = _hours_between(
+                merge_request.first_commit_at, first_release.committed_at
+            )
+            merge_request.lead_time_match_status = "matched"
+        else:
+            merge_request.lead_time_hours = None
+            merge_request.lead_time_match_status = "first_commit_missing"
+        mapped += 1
+    return mapped
+
+
 def collect_gitlab_tags_and_releases(
     db: Session,
     *,
     config: ConfigurationSchema,
     gitlab_token: str,
     per_page: int = 100,
+    mr_mapping_cooldown_seconds: float = 0.05,
 ) -> int:
     started_at = datetime.now(timezone.utc)  # noqa: UP017
     sync_log = SyncLog(source="gitlab", started_at=started_at, status="running")
@@ -479,6 +652,23 @@ def collect_gitlab_tags_and_releases(
                 for merge_request in _deduplicate_merge_requests(merge_requests):
                     _upsert_merge_request(db, repository_id=repository.id, payload=merge_request)
                     processed += 1
+
+                processed += _sync_first_commit_timestamps(
+                    db,
+                    gitlab,
+                    repository=repository,
+                    project_path=project_path,
+                    cooldown_seconds=mr_mapping_cooldown_seconds,
+                    per_page=per_page,
+                )
+                processed += _map_merge_requests_to_customer_releases(
+                    db,
+                    gitlab,
+                    repository=repository,
+                    project_path=project_path,
+                    cooldown_seconds=mr_mapping_cooldown_seconds,
+                    per_page=per_page,
+                )
 
         sync_log.status = "success"
         sync_log.finished_at = datetime.now(timezone.utc)  # noqa: UP017

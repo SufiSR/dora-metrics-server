@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from app.services.gitlab_release_collector import (
     _deduplicate_merge_requests,
     _effective_commit_sha,
     _extract_jira_key,
+    _hours_between,
     _is_customer_release,
     _markers_regex,
+    _parse_merge_request,
+    GitLabTagsClient,
     parse_tag_version,
 )
 
@@ -83,3 +88,64 @@ def test_deduplicate_merge_requests_by_gitlab_id() -> None:
     assert len(deduplicated) == 2
     ids = [item["gitlab_mr_id"] for item in deduplicated]
     assert ids == [17, 42]
+
+
+def test_parse_merge_request_prefers_iid_for_gitlab_mr_id() -> None:
+    parsed = _parse_merge_request(
+        {
+            "id": 9001,
+            "iid": 42,
+            "target_branch": "master",
+            "created_at": "2026-03-31T08:00:00Z",
+            "merged_at": "2026-03-31T09:00:00Z",
+        }
+    )
+    assert parsed is not None
+    assert parsed["gitlab_mr_id"] == 42
+
+
+def test_hours_between_rounds_to_two_decimals() -> None:
+    start = datetime(2026, 3, 31, 8, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 3, 31, 9, 20, 6, tzinfo=timezone.utc)
+    assert str(_hours_between(start, end)) == "1.34"
+
+
+def test_list_merge_request_commits_paginates() -> None:
+    client = GitLabTagsClient(base_url="https://gitlab.example.com", token="dummy")
+    responses = [
+        [{"id": "c1"}, {"id": "c2"}],
+        [{"id": "c3"}],
+    ]
+
+    def fake_get_json(url: str, *, params: dict[str, int] | None = None) -> object:
+        assert "merge_requests/42/commits" in url
+        assert params is not None
+        return responses[params["page"] - 1]
+
+    try:
+        client._get_json = fake_get_json  # type: ignore[method-assign]
+        commits = client.list_merge_request_commits("group/project", merge_request_iid=42, per_page=2)
+        assert [item["id"] for item in commits] == ["c1", "c2", "c3"]
+    finally:
+        client.close()
+
+
+def test_list_commit_tag_refs_paginates() -> None:
+    client = GitLabTagsClient(base_url="https://gitlab.example.com", token="dummy")
+    responses = [
+        [{"name": "v1.0.0", "type": "tag"}, {"name": "v1.0.1", "type": "tag"}],
+        [{"name": "v1.0.2", "type": "tag"}],
+    ]
+
+    def fake_get_json(url: str, *, params: dict[str, object] | None = None) -> object:
+        assert "repository/commits/abc123/refs" in url
+        assert params is not None
+        assert params["type"] == "tag"
+        return responses[int(params["page"]) - 1]
+
+    try:
+        client._get_json = fake_get_json  # type: ignore[method-assign]
+        refs = client.list_commit_tag_refs("group/project", commit_sha="abc123", per_page=2)
+        assert [item["name"] for item in refs] == ["v1.0.0", "v1.0.1", "v1.0.2"]
+    finally:
+        client.close()
