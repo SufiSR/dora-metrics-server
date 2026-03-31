@@ -1,0 +1,22 @@
+# Worklog Time Log
+
+Use this file as the durable source for Jira worklog entries.
+Record only actual active work time.
+
+## Entry format
+
+| Issue | Activity | Start (local) | End (local) | Duration | Notes |
+| --- | --- | --- | --- | --- | --- |
+| DEVOPS-000 | planning | 2026-03-31 14:00 | 2026-03-31 14:05 | 5m | Initial plan draft |
+| DEVOPS-433 | planning | 2026-03-31 14:32 | 2026-03-31 14:33 | 1m | Scope check and implementation plan approval |
+| DEVOPS-433 | implementation | 2026-03-31 14:34 | 2026-03-31 14:35 | 1m | Added MR collection, Jira key extraction, dedupe, and unit tests |
+| DEVOPS-433 | jira-update | 2026-03-31 14:36 | 2026-03-31 14:37 | 1m | Added Jira plan/estimate/worklog, prepared solution and status transition |
+
+## Active session template
+
+- Issue: DEVOPS-XXX
+- Activity: planning|implementation|validation|jira-update
+- Start: YYYY-MM-DD HH:MM
+- End: YYYY-MM-DD HH:MM
+- Duration: Xm
+- Notes: short context

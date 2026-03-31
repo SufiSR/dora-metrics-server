@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -18,11 +18,14 @@ from tenacity import (
 
 from app.config_schema import ConfigurationSchema
 from app.models.app_configuration import AppConfiguration
+from app.models.merge_request import MergeRequest
 from app.models.release import Release
 from app.models.repository import Repository
 from app.models.sync_log import SyncLog
 
 _DEFAULT_MARKERS = ["rc", "beta"]
+_DEFAULT_TARGET_BRANCHES = ["master", "9.x", "10.x", "11.x"]
+_JIRA_KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]+-\d+)\b")
 _VERSION_RE = re.compile(
     r"^[vV]?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$"
 )
@@ -86,8 +89,9 @@ def _is_customer_release(tag_name: str | None, marker_re: re.Pattern[str]) -> bo
 def _merged_gitlab_settings(
     db: Session,
     defaults: ConfigurationSchema,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
     project_paths = list(defaults.gitlab.project_paths)
+    target_branches = [branch.strip() for branch in defaults.gitlab.target_branches if branch.strip()]
     markers = [m.strip().lower() for m in defaults.gitlab.non_customer_release_markers if m.strip()]
 
     app_config = db.get(AppConfiguration, 1)
@@ -101,6 +105,13 @@ def _merged_gitlab_settings(
             nested_paths = gitlab_settings.get("project_paths")
             if isinstance(nested_paths, list):
                 project_paths = [str(path).strip() for path in nested_paths if str(path).strip()]
+            nested_target_branches = gitlab_settings.get("target_branches")
+            if isinstance(nested_target_branches, list):
+                target_branches = [
+                    str(branch).strip()
+                    for branch in nested_target_branches
+                    if str(branch).strip()
+                ]
             configured_markers = gitlab_settings.get("non_customer_release_markers")
             if isinstance(configured_markers, list):
                 markers = [
@@ -111,7 +122,92 @@ def _merged_gitlab_settings(
 
     if not markers:
         markers = list(_DEFAULT_MARKERS)
-    return project_paths, markers
+    if not target_branches:
+        target_branches = list(_DEFAULT_TARGET_BRANCHES)
+    return project_paths, target_branches, markers
+
+
+def _extract_jira_key(
+    title: str | None,
+    source_branch: str | None,
+    description: str | None,
+) -> tuple[str | None, str | None]:
+    for text, source in (
+        (title, "title"),
+        (source_branch, "branch"),
+        (description, "description"),
+    ):
+        if text:
+            match = _JIRA_KEY_RE.search(text)
+            if match:
+                return match.group(1), source
+    return None, None
+
+
+def _effective_commit_sha(
+    merge_commit_sha: str | None,
+    squash_commit_sha: str | None,
+) -> str | None:
+    return (merge_commit_sha or squash_commit_sha or "").strip() or None
+
+
+def _parse_merge_request(raw: dict[str, Any]) -> dict[str, Any] | None:
+    merged_at = _parse_dt(str(raw.get("merged_at") or ""))
+    created_at = _parse_dt(str(raw.get("created_at") or ""))
+    target_branch = str(raw.get("target_branch") or "").strip()
+    mr_id = raw.get("id")
+    if not isinstance(mr_id, int) or merged_at is None or created_at is None or not target_branch:
+        return None
+
+    title = str(raw.get("title") or "").strip() or None
+    description = str(raw.get("description") or "").strip() or None
+    source_branch = str(raw.get("source_branch") or "").strip() or None
+    author_payload = raw.get("author")
+    author = None
+    if isinstance(author_payload, dict):
+        author = str(author_payload.get("username") or "").strip() or None
+    head_sha = str(raw.get("sha") or "").strip() or None
+    merge_commit_sha = str(raw.get("merge_commit_sha") or "").strip() or None
+    squash_commit_sha = str(raw.get("squash_commit_sha") or "").strip() or None
+    jira_key, jira_key_source = _extract_jira_key(title, source_branch, description)
+
+    return {
+        "gitlab_mr_id": mr_id,
+        "title": title,
+        "description": description,
+        "author": author,
+        "source_branch": source_branch,
+        "target_branch": target_branch,
+        "created_at": created_at,
+        "merged_at": merged_at,
+        "head_sha": head_sha,
+        "merge_commit_sha": merge_commit_sha,
+        "squash_commit_sha": squash_commit_sha,
+        "effective_commit_sha": _effective_commit_sha(merge_commit_sha, squash_commit_sha),
+        "jira_key": jira_key,
+        "jira_key_source": jira_key_source,
+    }
+
+
+def _lookback_from(days: int) -> datetime:
+    lookback_date = date.today() - timedelta(days=days)
+    return datetime(
+        lookback_date.year,
+        lookback_date.month,
+        lookback_date.day,
+        tzinfo=timezone.utc,
+    )
+
+
+def _deduplicate_merge_requests(
+    merge_requests: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    by_id: dict[int, dict[str, Any]] = {}
+    for merge_request in merge_requests:
+        mr_id = merge_request.get("gitlab_mr_id")
+        if isinstance(mr_id, int):
+            by_id[mr_id] = merge_request
+    return sorted(by_id.values(), key=lambda item: item["merged_at"], reverse=True)
 
 
 class GitLabTagsClient:
@@ -172,6 +268,50 @@ class GitLabTagsClient:
                 break
             page += 1
         return tags
+
+    def list_merged_merge_requests(
+        self,
+        project_path: str,
+        *,
+        target_branch: str,
+        lookback_days: int,
+        per_page: int = 100,
+    ) -> list[dict[str, Any]]:
+        encoded = quote(project_path.strip(), safe="")
+        url = f"{self.api_root}/projects/{encoded}/merge_requests"
+        page = 1
+        merge_requests: list[dict[str, Any]] = []
+        lookback_start = _lookback_from(lookback_days)
+
+        while True:
+            payload = self._get_json(
+                url,
+                params={
+                    "state": "merged",
+                    "order_by": "updated_at",
+                    "sort": "desc",
+                    "target_branch": target_branch,
+                    "page": page,
+                    "per_page": per_page,
+                },
+            )
+            if not isinstance(payload, list):
+                raise TypeError(f"Unexpected merge request response for {project_path}")
+
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                parsed = _parse_merge_request(item)
+                if parsed is None:
+                    continue
+                if parsed["merged_at"] >= lookback_start:
+                    merge_requests.append(parsed)
+
+            if len(payload) < per_page:
+                break
+            page += 1
+
+        return merge_requests
 
 
 def _upsert_repository(db: Session, project_path: str, project: dict[str, Any]) -> Repository:
@@ -237,6 +377,55 @@ def _upsert_release(
     release.committed_at = committed_at
 
 
+def _upsert_merge_request(
+    db: Session,
+    repository_id: int,
+    payload: dict[str, Any],
+) -> None:
+    merge_request = db.execute(
+        select(MergeRequest).where(
+            MergeRequest.repository_id == repository_id,
+            MergeRequest.gitlab_mr_id == payload["gitlab_mr_id"],
+        )
+    ).scalar_one_or_none()
+
+    if merge_request is None:
+        db.add(
+            MergeRequest(
+                repository_id=repository_id,
+                gitlab_mr_id=payload["gitlab_mr_id"],
+                title=payload["title"],
+                description=payload["description"],
+                author=payload["author"],
+                source_branch=payload["source_branch"],
+                target_branch=payload["target_branch"],
+                created_at=payload["created_at"],
+                merged_at=payload["merged_at"],
+                head_sha=payload["head_sha"],
+                merge_commit_sha=payload["merge_commit_sha"],
+                squash_commit_sha=payload["squash_commit_sha"],
+                effective_commit_sha=payload["effective_commit_sha"],
+                jira_key=payload["jira_key"],
+                jira_key_source=payload["jira_key_source"],
+            )
+        )
+        return
+
+    merge_request.title = payload["title"]
+    merge_request.description = payload["description"]
+    merge_request.author = payload["author"]
+    merge_request.source_branch = payload["source_branch"]
+    merge_request.target_branch = payload["target_branch"]
+    merge_request.created_at = payload["created_at"]
+    merge_request.merged_at = payload["merged_at"]
+    merge_request.head_sha = payload["head_sha"]
+    merge_request.merge_commit_sha = payload["merge_commit_sha"]
+    merge_request.squash_commit_sha = payload["squash_commit_sha"]
+    merge_request.effective_commit_sha = payload["effective_commit_sha"]
+    merge_request.jira_key = payload["jira_key"]
+    merge_request.jira_key_source = payload["jira_key_source"]
+
+
 def collect_gitlab_tags_and_releases(
     db: Session,
     *,
@@ -249,7 +438,7 @@ def collect_gitlab_tags_and_releases(
     db.add(sync_log)
     db.flush()
 
-    project_paths, markers = _merged_gitlab_settings(db, config)
+    project_paths, target_branches, markers = _merged_gitlab_settings(db, config)
     marker_re = _markers_regex(markers)
     processed = 0
 
@@ -274,6 +463,21 @@ def collect_gitlab_tags_and_releases(
                         commit_sha=commit_sha,
                         committed_at=committed_at,
                     )
+                    processed += 1
+
+                merge_requests: list[dict[str, Any]] = []
+                for target_branch in target_branches:
+                    merge_requests.extend(
+                        gitlab.list_merged_merge_requests(
+                            project_path=project_path,
+                            target_branch=target_branch,
+                            lookback_days=config.backend.lookback_days,
+                            per_page=per_page,
+                        )
+                    )
+
+                for merge_request in _deduplicate_merge_requests(merge_requests):
+                    _upsert_merge_request(db, repository_id=repository.id, payload=merge_request)
                     processed += 1
 
         sync_log.status = "success"
