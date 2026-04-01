@@ -49,6 +49,7 @@ Record only actual active work time.
 | DEVOPS-451 | implementation | 2026-04-01 14:28 | 2026-04-01 14:34 | 6m | merge_request inserted_at→updated_at, initial schema + rename migration for existing DBs, database-schema doc, unit test |
 | DEVOPS-451 | validation | 2026-04-01 14:34 | 2026-04-01 14:35 | 1m | pytest story7/story9 (11 passed) |
 | DEVOPS-451 | jira-update | 2026-04-01 14:36 | 2026-04-01 14:38 | 2m | Committed/pushed DEVOPS-451; prepared Jira solution, worklog, and Done transition |
+| DEVOPS-451 | jira-update | 2026-04-01 14:39 | 2026-04-01 14:40 | 1m | Jira Close transition required transition-level worklog entry |
 
 ## Active session template
 
