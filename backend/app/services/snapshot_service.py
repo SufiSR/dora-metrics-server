@@ -12,6 +12,7 @@ from app.models.repository import Repository
 from app.services.metric_service import (
     PERIOD_TYPES,
     calculate_mttr_alpha_minutes,
+    calculate_mttr_minutes,
     calculate_period_metrics,
     period_metric_bounds,
 )
@@ -44,11 +45,15 @@ def refresh_snapshots(
         windows.extend(_build_period_windows(period_type=period_type, start_date=start_date, end_date=end_date))
 
     mttr_by_window: dict[tuple[date, date], int | None] = {}
+    mttr_resolution_by_window: dict[tuple[date, date], int | None] = {}
     for window in windows:
         wk = (window.period_start, window.period_end)
         if wk not in mttr_by_window:
             start_dt, end_dt = period_metric_bounds(window.period_start, window.period_end)
             mttr_by_window[wk] = calculate_mttr_alpha_minutes(
+                session, start_dt=start_dt, end_dt=end_dt
+            )
+            mttr_resolution_by_window[wk] = calculate_mttr_minutes(
                 session, start_dt=start_dt, end_dt=end_dt
             )
 
@@ -61,6 +66,7 @@ def refresh_snapshots(
                 period_start=window.period_start,
                 period_end=window.period_end,
                 repository_id=repository_id,
+                mttr_minutes_override=mttr_resolution_by_window[wk],
                 mttr_alpha_minutes_override=mttr_by_window[wk],
             )
             session.execute(
@@ -80,6 +86,7 @@ def refresh_snapshots(
                     lead_time_minutes=values.lead_time_minutes,
                     release_wait_median_minutes=values.release_wait_median_minutes,
                     change_failure_rate=values.change_failure_rate,
+                    mttr_minutes=values.mttr_minutes,
                     mttr_alpha_minutes=values.mttr_alpha_minutes,
                     lead_post_production_median_minutes=values.lead_post_production_median_minutes,
                 )

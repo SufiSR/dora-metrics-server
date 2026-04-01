@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from statistics import median
 
 from sqlalchemy import distinct, func, select
@@ -25,6 +25,7 @@ class MetricValues:
     lead_time_minutes: int | None
     release_wait_median_minutes: int | None
     change_failure_rate: Decimal
+    mttr_minutes: int | None
     mttr_alpha_minutes: int | None
     lead_post_production_median_minutes: int | None
 
@@ -59,6 +60,7 @@ def calculate_period_metrics(
     period_start: date,
     period_end: date,
     repository_id: int,
+    mttr_minutes_override: int | None | object = _MTTR_COMPUTE_SENTINEL,
     mttr_alpha_minutes_override: int | None | object = _MTTR_COMPUTE_SENTINEL,
 ) -> MetricValues:
     start_dt, end_dt = _period_datetimes(period_start, period_end)
@@ -86,6 +88,14 @@ def calculate_period_metrics(
         end_dt=end_dt,
         repository_id=repository_id,
     )
+    if mttr_minutes_override is _MTTR_COMPUTE_SENTINEL:
+        mttr_minutes = calculate_mttr_minutes(
+            session,
+            start_dt=start_dt,
+            end_dt=end_dt,
+        )
+    else:
+        mttr_minutes = mttr_minutes_override  # type: ignore[assignment]
     if mttr_alpha_minutes_override is _MTTR_COMPUTE_SENTINEL:
         mttr_alpha_minutes = calculate_mttr_alpha_minutes(
             session,
@@ -105,6 +115,7 @@ def calculate_period_metrics(
         lead_time_minutes=lead_time_minutes,
         release_wait_median_minutes=release_wait_median_minutes,
         change_failure_rate=change_failure_rate,
+        mttr_minutes=mttr_minutes,
         mttr_alpha_minutes=mttr_alpha_minutes,
         lead_post_production_median_minutes=lead_post_production_median_minutes,
     )
@@ -216,6 +227,29 @@ def calculate_change_failure_rate(
     return (Decimal(failed_count) / Decimal(len(eligible_release_ids))).quantize(
         Decimal("0.0001"), rounding=ROUND_HALF_UP
     )
+
+
+def calculate_mttr_minutes(
+    session: Session,
+    *,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> int | None:
+    values = (
+        session.execute(
+            select(ProductionBug.mttr_minutes).where(
+                ProductionBug.healthy.is_(True),
+                ProductionBug.jira_created_at_valid.is_(True),
+                ProductionBug.closed_at.is_not(None),
+                ProductionBug.closed_at >= start_dt,
+                ProductionBug.closed_at < end_dt,
+                ProductionBug.mttr_minutes.is_not(None),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return _median_minutes(values)
 
 
 def calculate_mttr_alpha_minutes(

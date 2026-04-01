@@ -361,6 +361,7 @@ def test_map_merge_requests_clears_stale_fields_when_refs_disappear() -> None:
             project_path="operations/dora-metrics",
             cooldown_seconds=0.0,
             per_page=100,
+            lookback_days=730,
         )
         db.commit()
         mr_after_first = db.get(MergeRequest, 20)
@@ -380,6 +381,7 @@ def test_map_merge_requests_clears_stale_fields_when_refs_disappear() -> None:
             project_path="operations/dora-metrics",
             cooldown_seconds=0.0,
             per_page=100,
+            lookback_days=730,
         )
         db.commit()
         mr_after_second = db.get(MergeRequest, 20)
@@ -387,11 +389,10 @@ def test_map_merge_requests_clears_stale_fields_when_refs_disappear() -> None:
     assert second_mapped == 0
     assert mr_after_second is not None
     assert mr_after_second.lead_time_match_status == "no_tag_ref_found"
-    # Empty ref response does not wipe last-known-good mapping (avoid silent metric loss on flaky API).
-    assert mr_after_second.first_customer_tag == "v10.1.0"
-    assert mr_after_second.first_customer_tag_date is not None
-    assert mr_after_second.release_wait_time_hours is not None
-    assert mr_after_second.lead_time_hours is not None
+    assert mr_after_second.first_customer_tag is None
+    assert mr_after_second.first_customer_tag_date is None
+    assert mr_after_second.release_wait_time_hours is None
+    assert mr_after_second.lead_time_hours is None
 
 
 def test_reconcile_repository_releases_removes_tags_missing_upstream() -> None:

@@ -33,6 +33,7 @@ def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(m
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf: 1)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
     monkeypatch.setattr(sync_pipeline, "_notify_webhook", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sync_pipeline, "_resolve_orphaned_sync_logs", lambda _sf: None)
     monkeypatch.setattr(sync_pipeline, "_run_with_session", lambda _sf, fn: fn(None))
     monkeypatch.setattr(
         sync_pipeline,
@@ -78,6 +79,7 @@ def test_run_nightly_sync_partial_failure_skips_links_mttr_hydrate_lead_post_but
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf: 2)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
     monkeypatch.setattr(sync_pipeline, "_notify_webhook", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sync_pipeline, "_resolve_orphaned_sync_logs", lambda _sf: None)
     monkeypatch.setattr(sync_pipeline, "_run_with_session", lambda _sf, fn: fn(None))
 
     def _gitlab_fail(_db, **_kwargs):

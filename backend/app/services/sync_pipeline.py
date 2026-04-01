@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Callable
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.config_schema import ConfigurationSchema
@@ -206,23 +206,34 @@ def _resolve_mttr_alpha_fix_releases(db: Session, config: ConfigurationSchema) -
 
 def _compute_lead_post_production(db: Session, *, lookback_days: int) -> int:
     processed = 0
+    null_count = 0
     lookback_start = _lookback_start_utc(lookback_days)
     bug_by_jira_key = {
         bug.jira_key: bug for bug in db.execute(select(ProductionBug)).scalars() if bug.jira_key
     }
+    db.execute(
+        update(MergeRequest)
+        .where(
+            MergeRequest.merged_at >= lookback_start,
+            MergeRequest.jira_key.is_(None),
+            MergeRequest.lead_post_production_hours.isnot(None),
+        )
+        .values(lead_post_production_hours=None)
+    )
     merge_requests = db.execute(
-        select(MergeRequest).where(MergeRequest.merged_at >= lookback_start)
+        select(MergeRequest).where(
+            MergeRequest.merged_at >= lookback_start,
+            MergeRequest.jira_key.isnot(None),
+        )
     ).scalars()
     for merge_request in merge_requests:
-        if not merge_request.jira_key:
-            merge_request.lead_post_production_hours = None
-            continue
         bug = bug_by_jira_key.get(merge_request.jira_key)
         ready_at = bug.ready_for_qa_at if bug is not None else None
         if ready_at is None:
             ready_at = merge_request.jira_ready_for_qa_at
         if ready_at is None or merge_request.merged_at < ready_at:
             merge_request.lead_post_production_hours = None
+            null_count += 1
             continue
         hours = (merge_request.merged_at - ready_at).total_seconds() / 3600.0
         merge_request.lead_post_production_hours = Decimal(str(hours)).quantize(
@@ -230,6 +241,10 @@ def _compute_lead_post_production(db: Session, *, lookback_days: int) -> int:
         )
         processed += 1
     db.commit()
+    logger.info(
+        "lead_post_production completed",
+        extra={"computed": processed, "null_result": null_count},
+    )
     return processed
 
 
@@ -247,11 +262,30 @@ def _notify_webhook(url: str | None, payload: dict[str, str | int]) -> None:
         logger.exception("nightly_sync webhook notification failed")
 
 
+def _resolve_orphaned_sync_logs(session_factory: Callable[[], Session]) -> None:
+    def _resolve(db: Session) -> int:
+        threshold = datetime.now(timezone.utc) - timedelta(hours=4)  # noqa: UP017
+        db.execute(
+            update(SyncLog)
+            .where(SyncLog.status == "running", SyncLog.started_at < threshold)
+            .values(
+                status="crashed",
+                finished_at=datetime.now(timezone.utc),  # noqa: UP017
+                error_message="Resolved as crashed: process did not complete",
+            )
+        )
+        db.commit()
+        return 0
+
+    _run_with_session(session_factory, _resolve)
+
+
 def run_nightly_sync(
     *,
     config: ConfigurationSchema | None = None,
     session_factory: Callable[[], Session] = SessionLocal,
 ) -> dict[str, str | int]:
+    _resolve_orphaned_sync_logs(session_factory)
     with session_factory() as config_db:
         runtime_config = load_runtime_config(db=config_db)
     effective_config = config or runtime_config.settings
@@ -304,32 +338,60 @@ def run_nightly_sync(
             errors.append(f"jira: {msg}")
             logger.error("nightly_sync skipped jira: %s", msg)
 
+        derivation_errors: list[str] = []
+
         if gitlab_ok and jira_ok:
-            records_processed += _run_with_session(session_factory, _map_bugs_to_releases)
+            try:
+                records_processed += _run_with_session(session_factory, _map_bugs_to_releases)
+            except Exception as exc:
+                derivation_errors.append(f"map_bugs_to_releases: {exc}")
+                logger.exception("nightly_sync map_bugs_to_releases failed")
         elif gitlab_ok or jira_ok:
             logger.info("nightly_sync skipped bug_release mapping due to partial failure")
 
         if gitlab_ok and jira_ok:
-            records_processed += _run_with_session(
-                session_factory,
-                lambda db: _resolve_mttr_alpha_fix_releases(db, effective_config),
-            )
-            records_processed += _run_with_session(
-                session_factory,
-                lambda db: hydrate_merge_request_jira_ready_for_qa(
-                    db, config=effective_config, jira_token=jira_token
-                ),
-            )
-            records_processed += _run_with_session(
-                session_factory,
-                lambda db: _compute_lead_post_production(
-                    db, lookback_days=effective_config.backend.lookback_days
-                ),
-            )
+            try:
+                records_processed += _run_with_session(
+                    session_factory,
+                    lambda db: _resolve_mttr_alpha_fix_releases(db, effective_config),
+                )
+            except Exception as exc:
+                derivation_errors.append(f"mttr_alpha: {exc}")
+                logger.exception("nightly_sync mttr_alpha resolution failed")
+            try:
+                records_processed += _run_with_session(
+                    session_factory,
+                    lambda db: hydrate_merge_request_jira_ready_for_qa(
+                        db, config=effective_config, jira_token=jira_token
+                    ),
+                )
+            except Exception as exc:
+                derivation_errors.append(f"hydrate_jira_rfq: {exc}")
+                logger.exception("nightly_sync jira_ready_for_qa hydration failed")
+            try:
+                records_processed += _run_with_session(
+                    session_factory,
+                    lambda db: _compute_lead_post_production(
+                        db, lookback_days=effective_config.backend.lookback_days
+                    ),
+                )
+            except Exception as exc:
+                derivation_errors.append(f"lead_post_production: {exc}")
+                logger.exception("nightly_sync lead_post_production failed")
         else:
-            logger.info("nightly_sync skipped mttr_alpha, jira_ready_for_qa hydrate, and lead_post_production due to partial failure")
+            logger.info(
+                "nightly_sync skipped mttr_alpha, jira_ready_for_qa hydrate, "
+                "and lead_post_production due to partial failure"
+            )
+
+        errors.extend(derivation_errors)
 
         if gitlab_ok or jira_ok:
+            if derivation_errors:
+                logger.warning(
+                    "nightly_sync generating snapshots despite derivation errors: %s",
+                    "; ".join(derivation_errors),
+                )
             records_processed += _run_with_session(
                 session_factory, lambda db: _generate_snapshots(db, effective_config)
             )

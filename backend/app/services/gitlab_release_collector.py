@@ -20,6 +20,7 @@ from tenacity import (
 )
 
 from app.config_schema import ConfigurationSchema
+from app.models.bug_release import BugRelease
 from app.models.merge_request import MergeRequest
 from app.models.release import Release
 from app.models.repository import Repository
@@ -415,31 +416,45 @@ def _reconcile_repository_releases(
     repository_id: int,
     seen_tag_names: set[str],
 ) -> int:
-    if seen_tag_names:
-        existing_tags = set(
-            db.execute(select(Release.tag_name).where(Release.repository_id == repository_id)).scalars().all()
+    if not seen_tag_names:
+        logger.warning(
+            "skipping release reconciliation: no tags seen (possible API failure)",
+            extra={"repository_id": repository_id},
         )
-        if len(existing_tags) > 10 and len(seen_tag_names) < len(existing_tags) // 2:
-            logger.warning(
-                "skipping release reconciliation: tag fetch set much smaller than DB (possible incomplete API page)",
-                extra={
-                    "repository_id": repository_id,
-                    "seen_count": len(seen_tag_names),
-                    "existing_count": len(existing_tags),
-                },
-            )
-            return 0
-        stale_tags = existing_tags - seen_tag_names
-        if not stale_tags:
-            return 0
-        result = db.execute(
-            delete(Release).where(
+        return 0
+
+    existing_tags = set(
+        db.execute(select(Release.tag_name).where(Release.repository_id == repository_id)).scalars().all()
+    )
+    if len(existing_tags) > 10 and len(seen_tag_names) < len(existing_tags) // 2:
+        logger.warning(
+            "skipping release reconciliation: tag fetch set much smaller than DB (possible incomplete API page)",
+            extra={
+                "repository_id": repository_id,
+                "seen_count": len(seen_tag_names),
+                "existing_count": len(existing_tags),
+            },
+        )
+        return 0
+    stale_tags = existing_tags - seen_tag_names
+    if not stale_tags:
+        return 0
+    stale_release_ids = list(
+        db.execute(
+            select(Release.id).where(
                 Release.repository_id == repository_id,
                 Release.tag_name.in_(stale_tags),
             )
+        ).scalars().all()
+    )
+    if stale_release_ids:
+        db.execute(delete(BugRelease).where(BugRelease.release_id.in_(stale_release_ids)))
+    result = db.execute(
+        delete(Release).where(
+            Release.repository_id == repository_id,
+            Release.tag_name.in_(stale_tags),
         )
-        return int(result.rowcount or 0)
-    result = db.execute(delete(Release).where(Release.repository_id == repository_id))
+    )
     return int(result.rowcount or 0)
 
 
@@ -495,6 +510,13 @@ def _upsert_merge_request(
         merge_request.jira_ready_for_qa_at = None
 
 
+def _clear_mr_release_fields(mr: MergeRequest) -> None:
+    mr.first_customer_tag = None
+    mr.first_customer_tag_date = None
+    mr.release_wait_time_hours = None
+    mr.lead_time_hours = None
+
+
 def _apply_cooldown(seconds: float) -> None:
     if seconds > 0:
         sleep(seconds)
@@ -516,9 +538,8 @@ def _sync_first_commit_timestamps(
         select(MergeRequest).where(
             MergeRequest.repository_id == repository.id,
             or_(
-                MergeRequest.first_commit_at.is_(None),
-                MergeRequest.updated_at >= lookback_start,
                 MergeRequest.merged_at >= lookback_start,
+                MergeRequest.updated_at >= lookback_start,
             ),
         )
     ).scalars()
@@ -548,8 +569,10 @@ def _map_merge_requests_to_customer_releases(
     project_path: str,
     cooldown_seconds: float,
     per_page: int,
+    lookback_days: int,
 ) -> int:
     mapped = 0
+    lookback_start = _lookback_from(lookback_days)
     releases = db.execute(
         select(Release).where(
             Release.repository_id == repository.id,
@@ -558,7 +581,13 @@ def _map_merge_requests_to_customer_releases(
     ).scalars()
     releases_by_tag = {release.tag_name: release for release in releases}
     merge_requests = db.execute(
-        select(MergeRequest).where(MergeRequest.repository_id == repository.id)
+        select(MergeRequest).where(
+            MergeRequest.repository_id == repository.id,
+            or_(
+                MergeRequest.merged_at >= lookback_start,
+                MergeRequest.first_customer_tag.is_(None),
+            ),
+        )
     ).scalars()
 
     ref_cache: dict[str, list[dict[str, Any]]] = {}
@@ -566,6 +595,7 @@ def _map_merge_requests_to_customer_releases(
     for merge_request in merge_requests:
         if not merge_request.effective_commit_sha:
             merge_request.lead_time_match_status = "no_effective_commit_sha"
+            _clear_mr_release_fields(merge_request)
             continue
 
         sha = merge_request.effective_commit_sha
@@ -580,6 +610,7 @@ def _map_merge_requests_to_customer_releases(
             _apply_cooldown(cooldown_seconds)
         if not refs:
             merge_request.lead_time_match_status = "no_tag_ref_found"
+            _clear_mr_release_fields(merge_request)
             continue
 
         matching_releases: list[Release] = []
@@ -596,6 +627,7 @@ def _map_merge_requests_to_customer_releases(
 
         if not matching_releases:
             merge_request.lead_time_match_status = "no_customer_tag_ref_found"
+            _clear_mr_release_fields(merge_request)
             continue
 
         eligible_releases = [
@@ -603,6 +635,7 @@ def _map_merge_requests_to_customer_releases(
         ]
         if not eligible_releases:
             merge_request.lead_time_match_status = "no_customer_tag_after_merge"
+            _clear_mr_release_fields(merge_request)
             continue
 
         first_release = min(eligible_releases, key=lambda rel: rel.committed_at)
@@ -701,6 +734,7 @@ def collect_gitlab_tags_and_releases(
                     project_path=project_path,
                     cooldown_seconds=mr_mapping_cooldown_seconds,
                     per_page=per_page,
+                    lookback_days=config.backend.lookback_days,
                 )
 
         sync_log.status = "success"

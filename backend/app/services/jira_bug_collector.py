@@ -484,16 +484,39 @@ def _upsert_production_bug(
     return bug
 
 
-def _replace_issue_worklogs(db: Session, *, bug_id: int, parsed_worklogs: list[dict[str, Any]]) -> None:
-    db.execute(delete(IssueWorklog).where(IssueWorklog.bug_id == bug_id))
-    for worklog in parsed_worklogs:
-        db.add(
-            IssueWorklog(
-                bug_id=bug_id,
-                jira_worklog_id=worklog["jira_worklog_id"],
-                author=worklog["author"],
-                started=worklog["started"],
-                time_spent_seconds=worklog["time_spent_seconds"],
+def _sync_issue_worklogs(db: Session, *, bug_id: int, parsed_worklogs: list[dict[str, Any]]) -> None:
+    incoming_by_id = {w["jira_worklog_id"]: w for w in parsed_worklogs}
+    existing = db.execute(
+        select(IssueWorklog).where(IssueWorklog.bug_id == bug_id)
+    ).scalars().all()
+
+    existing_ids: set[str] = set()
+    for wl in existing:
+        existing_ids.add(wl.jira_worklog_id)
+        incoming = incoming_by_id.get(wl.jira_worklog_id)
+        if incoming is not None:
+            wl.author = incoming["author"]
+            wl.started = incoming["started"]
+            wl.time_spent_seconds = incoming["time_spent_seconds"]
+
+    for wl_id, data in incoming_by_id.items():
+        if wl_id not in existing_ids:
+            db.add(
+                IssueWorklog(
+                    bug_id=bug_id,
+                    jira_worklog_id=data["jira_worklog_id"],
+                    author=data["author"],
+                    started=data["started"],
+                    time_spent_seconds=data["time_spent_seconds"],
+                )
+            )
+
+    removed_ids = existing_ids - set(incoming_by_id.keys())
+    if removed_ids:
+        db.execute(
+            delete(IssueWorklog).where(
+                IssueWorklog.bug_id == bug_id,
+                IssueWorklog.jira_worklog_id.in_(removed_ids),
             )
         )
 
@@ -537,14 +560,17 @@ def hydrate_merge_request_jira_ready_for_qa(
     touched = 0
     with JiraBugsClient(base_url=config.jira.base_url, token=jira_token) as jira:
         for issue_key in keys:
-            changelog_items = jira.list_issue_changelog(issue_key, max_results=per_page)
-            rfq = first_ready_for_qa_at(changelog_items, ready_status_names)
-            result = db.execute(
-                update(MergeRequest)
-                .where(MergeRequest.jira_key == issue_key)
-                .values(jira_ready_for_qa_at=rfq)
-            )
-            touched += int(result.rowcount or 0)
+            try:
+                changelog_items = jira.list_issue_changelog(issue_key, max_results=per_page)
+                rfq = first_ready_for_qa_at(changelog_items, ready_status_names)
+                result = db.execute(
+                    update(MergeRequest)
+                    .where(MergeRequest.jira_key == issue_key)
+                    .values(jira_ready_for_qa_at=rfq)
+                )
+                touched += int(result.rowcount or 0)
+            except Exception:
+                logger.exception("hydrate_jira_ready_for_qa failed for %s", issue_key)
     db.commit()
     return touched
 
@@ -682,7 +708,7 @@ def collect_jira_production_bugs(
                     ready_for_qa_at=ready_for_qa_at,
                     total_worklog_seconds=total_worklog_seconds,
                 )
-                _replace_issue_worklogs(db, bug_id=bug.id, parsed_worklogs=parsed_worklogs)
+                _sync_issue_worklogs(db, bug_id=bug.id, parsed_worklogs=parsed_worklogs)
                 processed += 1
 
         sync_log.status = "success"
