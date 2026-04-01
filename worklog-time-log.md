@@ -102,6 +102,8 @@ Record only actual active work time.
 | DEVOPS-466 | implementation | 2026-04-01 14:20 | 2026-04-01 14:33 | 13m | Story7 lead-post tests (lookback_days, processed count), scoped ruff on _parse_dt, backend unit pytest (50 passed), commit/push DEVOPS-466 |
 | DEVOPS-466 | jira-update | 2026-04-01 14:33 | 2026-04-01 14:52 | 19m | Jira DEVOPS-467-485: Original Estimate + Solution (ADF), Done transitions; parent DEVOPS-466 solution and closure prep |
 
+| DEVOPS-466 | implementation | 2026-04-01 21:30 | 2026-04-01 21:45 | 15m | Fixing after secondary review: 13 pipeline integrity/reliability fixes (F1-F13), test updates, lint, commit/push |
+
 ## Active session template
 
 - Issue: DEVOPS-XXX
