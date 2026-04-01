@@ -19,6 +19,7 @@ from app.models.sync_log import SyncLog
 from app.services.config_service import load_runtime_config
 from app.services.gitlab_release_collector import collect_gitlab_tags_and_releases
 from app.services.jira_bug_collector import collect_jira_production_bugs
+from app.services.snapshot_service import refresh_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -200,9 +201,8 @@ def _compute_lead_post_production(db: Session) -> int:
     return processed
 
 
-def _generate_snapshots(_: Session) -> int:
-    # Story 9 owns snapshot metric content. Scheduler story guarantees orchestration hook and policy.
-    return 0
+def _generate_snapshots(db: Session, config: ConfigurationSchema) -> int:
+    return refresh_snapshots(db, config=config)
 
 
 def _notify_webhook(url: str | None, payload: dict[str, str | int]) -> None:
@@ -274,7 +274,9 @@ def run_nightly_sync(
             logger.info("nightly_sync skipped mttr_alpha and lead_post_production due to partial failure")
 
         if gitlab_ok or jira_ok:
-            records_processed += _run_with_session(session_factory, _generate_snapshots)
+            records_processed += _run_with_session(
+                session_factory, lambda db: _generate_snapshots(db, effective_config)
+            )
 
         if gitlab_ok and jira_ok:
             status = "success"

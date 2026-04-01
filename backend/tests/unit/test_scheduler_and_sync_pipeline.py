@@ -43,7 +43,9 @@ def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(m
     monkeypatch.setattr(
         sync_pipeline, "_compute_lead_post_production", lambda _db: order.append("lead_post_prod") or 14
     )
-    monkeypatch.setattr(sync_pipeline, "_generate_snapshots", lambda _db: order.append("snapshots") or 15)
+    monkeypatch.setattr(
+        sync_pipeline, "_generate_snapshots", lambda _db, _config: order.append("snapshots") or 15
+    )
 
     payload = sync_pipeline.run_nightly_sync(config=ConfigurationSchema())
     assert payload["status"] == "success"
@@ -77,7 +79,9 @@ def test_run_nightly_sync_partial_failure_skips_mttr_and_still_snapshots(monkeyp
     monkeypatch.setattr(
         sync_pipeline, "_compute_lead_post_production", lambda _db: order.append("lead_post_prod") or 99
     )
-    monkeypatch.setattr(sync_pipeline, "_generate_snapshots", lambda _db: order.append("snapshots") or 1)
+    monkeypatch.setattr(
+        sync_pipeline, "_generate_snapshots", lambda _db, _config: order.append("snapshots") or 1
+    )
 
     payload = sync_pipeline.run_nightly_sync(config=ConfigurationSchema())
     assert payload["status"] == "partial_failure"
