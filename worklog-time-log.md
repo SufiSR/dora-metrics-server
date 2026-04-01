@@ -99,6 +99,8 @@ Record only actual active work time.
 | DEVOPS-463 | implementation | 2026-04-01 20:18 | 2026-04-01 20:22 | 4m | Mock load_runtime_config in nightly sync unit tests; align partial-failure test with skipped links/snapshots |
 | DEVOPS-463 | jira-update | 2026-04-01 20:22 | 2026-04-01 20:28 | 6m | Close parent DEVOPS-463: solution, worklog, transitions |
 | DEVOPS-463 | jira-update | 2026-04-01 20:28 | 2026-04-01 20:29 | 1m | Jira Close issue transition: required worklog on transition payload |
+| DEVOPS-466 | implementation | 2026-04-01 14:20 | 2026-04-01 14:33 | 13m | Story7 lead-post tests (lookback_days, processed count), scoped ruff on _parse_dt, backend unit pytest (50 passed), commit/push DEVOPS-466 |
+| DEVOPS-466 | jira-update | 2026-04-01 14:33 | 2026-04-01 14:52 | 19m | Jira DEVOPS-467-485: Original Estimate + Solution (ADF), Done transitions; parent DEVOPS-466 solution and closure prep |
 
 ## Active session template
 
