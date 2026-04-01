@@ -46,3 +46,17 @@ def stop_scheduler() -> None:
 
 def get_scheduler() -> BackgroundScheduler | None:
     return _scheduler
+
+
+def reschedule_nightly_sync(config: ConfigurationSchema) -> None:
+    scheduler = get_scheduler()
+    if scheduler is None or not scheduler.running:
+        return
+    scheduler.reschedule_job(
+        "nightly_sync",
+        trigger=CronTrigger(
+            hour=config.backend.sync_cron_hour,
+            minute=config.backend.sync_cron_minute,
+            timezone="UTC",
+        ),
+    )

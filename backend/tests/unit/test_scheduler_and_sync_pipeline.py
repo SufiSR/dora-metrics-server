@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from app.config_schema import ConfigurationSchema
 from app.scheduler import build_scheduler
 from app.services import sync_pipeline
@@ -29,6 +31,14 @@ def test_build_scheduler_registers_nightly_job_with_configured_cron() -> None:
 def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(monkeypatch) -> None:
     order: list[str] = []
 
+    monkeypatch.setattr(
+        sync_pipeline,
+        "_read_nightly_log_started_at",
+        lambda _db, _lid: datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(sync_pipeline, "_gitlab_table_counts", lambda _db: {"repositories": 1})
+    monkeypatch.setattr(sync_pipeline, "_jira_table_counts", lambda _db: {"bugs": 1})
+    monkeypatch.setattr(sync_pipeline, "_max_metric_snapshot_created_at", lambda _db: None)
     monkeypatch.setattr(sync_pipeline, "load_runtime_config", _fake_load_runtime_config)
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf: 1)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
@@ -81,6 +91,14 @@ def test_run_nightly_sync_partial_failure_skips_links_mttr_hydrate_lead_post_but
 ) -> None:
     order: list[str] = []
 
+    monkeypatch.setattr(
+        sync_pipeline,
+        "_read_nightly_log_started_at",
+        lambda _db, _lid: datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(sync_pipeline, "_gitlab_table_counts", lambda _db: {"repositories": 1})
+    monkeypatch.setattr(sync_pipeline, "_jira_table_counts", lambda _db: {"bugs": 1})
+    monkeypatch.setattr(sync_pipeline, "_max_metric_snapshot_created_at", lambda _db: None)
     monkeypatch.setattr(sync_pipeline, "load_runtime_config", _fake_load_runtime_config)
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf: 2)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)

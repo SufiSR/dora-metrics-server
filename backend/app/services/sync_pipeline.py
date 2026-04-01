@@ -4,17 +4,20 @@ import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 import httpx
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.config_schema import ConfigurationSchema
 from app.database import SessionLocal
 from app.models.bug_release import BugRelease
 from app.models.merge_request import MergeRequest
+from app.models.metric_snapshot import MetricSnapshot
 from app.models.production_bug import ProductionBug
 from app.models.release import Release
+from app.models.repository import Repository
 from app.models.sync_log import SyncLog
 from app.services.config_service import load_runtime_config
 from app.services.gitlab_release_collector import collect_gitlab_tags_and_releases
@@ -70,6 +73,7 @@ def _finish_nightly_sync_log(
     status: str,
     records_processed: int,
     error_message: str | None,
+    details_json: dict[str, Any] | None = None,
 ) -> int:
     def _finish(db: Session) -> int:
         row = db.get(SyncLog, log_id)
@@ -78,10 +82,56 @@ def _finish_nightly_sync_log(
             row.finished_at = datetime.now(timezone.utc)
             row.records_processed = records_processed
             row.error_message = error_message
+            row.details_json = details_json
             db.commit()
         return 0
 
     return _run_with_session(session_factory, _finish)
+
+
+def _gitlab_table_counts(db: Session) -> dict[str, int]:
+    repos = int(
+        db.scalar(select(func.count()).select_from(Repository).where(Repository.active.is_(True)))
+        or 0
+    )
+    releases = int(db.scalar(select(func.count()).select_from(Release)) or 0)
+    mrs = int(db.scalar(select(func.count()).select_from(MergeRequest)) or 0)
+    enriched = int(
+        db.scalar(
+            select(func.count()).select_from(MergeRequest).where(MergeRequest.first_commit_at.isnot(None))
+        )
+        or 0
+    )
+    return {
+        "repositories": repos,
+        "releases": releases,
+        "merge_requests": mrs,
+        "merge_requests_first_commit_enriched": enriched,
+    }
+
+
+def _jira_table_counts(db: Session) -> dict[str, int]:
+    bugs = int(db.scalar(select(func.count()).select_from(ProductionBug)) or 0)
+    mttr_alpha = int(
+        db.scalar(
+            select(func.count()).select_from(ProductionBug).where(
+                ProductionBug.mttr_alpha_minutes.isnot(None)
+            )
+        )
+        or 0
+    )
+    return {"bugs": bugs, "mttr_alpha_resolved": mttr_alpha}
+
+
+def _max_metric_snapshot_created_at(db: Session) -> datetime | None:
+    return db.scalar(select(func.max(MetricSnapshot.created_at)))
+
+
+def _read_nightly_log_started_at(db: Session, log_id: int) -> datetime:
+    row = db.get(SyncLog, log_id)
+    if row is None or row.started_at is None:
+        return datetime.now(timezone.utc)
+    return row.started_at
 
 
 def _lookback_start_utc(days: int) -> datetime:
@@ -297,6 +347,7 @@ def run_nightly_sync(
     gitlab_ok = False
     jira_ok = False
     records_processed = 0
+    snapshots_written = 0
     errors: list[str] = []
 
     try:
@@ -392,9 +443,10 @@ def run_nightly_sync(
                     "nightly_sync generating snapshots despite derivation errors: %s",
                     "; ".join(derivation_errors),
                 )
-            records_processed += _run_with_session(
+            snapshots_written = _run_with_session(
                 session_factory, lambda db: _generate_snapshots(db, effective_config)
             )
+            records_processed += snapshots_written
         else:
             logger.info("nightly_sync skipped snapshots: both collectors failed or were skipped")
 
@@ -405,24 +457,88 @@ def run_nightly_sync(
         else:
             status = "failed"
 
+        gitlab_records: dict[str, int] = {}
+        if (gitlab_token or "").strip():
+            gitlab_records = _run_with_session(session_factory, _gitlab_table_counts)
+        jira_records: dict[str, int] = {}
+        if (jira_token or "").strip():
+            jira_records = _run_with_session(session_factory, _jira_table_counts)
+
+        snapshot_generated_at: datetime | None = None
+        if snapshots_written > 0:
+            snapshot_generated_at = _run_with_session(
+                session_factory, _max_metric_snapshot_created_at
+            )
+
+        started_at = _run_with_session(
+            session_factory,
+            lambda db: _read_nightly_log_started_at(db, nightly_log_id),
+        )
+        finished_at = datetime.now(timezone.utc)
+        duration_seconds = int((finished_at - started_at).total_seconds())
+
+        details_json: dict[str, Any] = {
+            "started_at": started_at.isoformat().replace("+00:00", "Z"),
+            "finished_at": finished_at.isoformat().replace("+00:00", "Z"),
+            "duration_seconds": duration_seconds,
+            "status": status,
+            "collectors": {
+                "gitlab": {
+                    "status": "SUCCESS" if gitlab_ok else "FAILED",
+                    "records_processed": gitlab_records,
+                },
+                "jira": {
+                    "status": "SUCCESS" if jira_ok else "FAILED",
+                    "records_processed": jira_records,
+                },
+            },
+            "snapshots_generated": snapshots_written,
+            "snapshot_generated_at": (
+                snapshot_generated_at.isoformat().replace("+00:00", "Z")
+                if snapshot_generated_at
+                else None
+            ),
+        }
+
         _finish_nightly_sync_log(
             session_factory,
             log_id=nightly_log_id,
             status=status,
             records_processed=records_processed,
             error_message=" | ".join(errors)[:4000] if errors else None,
+            details_json=details_json,
         )
         payload = {"status": status, "records_processed": records_processed}
         _notify_webhook(webhook_url, payload)
         return payload
     except Exception as exc:
         errors.append(f"nightly: {exc}")
+        finished_at = datetime.now(timezone.utc)
+
+        started_at_exc = _run_with_session(
+            session_factory,
+            lambda db: _read_nightly_log_started_at(db, nightly_log_id),
+        )
+        duration_exc = int((finished_at - started_at_exc).total_seconds())
+        failure_details: dict[str, Any] = {
+            "started_at": started_at_exc.isoformat().replace("+00:00", "Z"),
+            "finished_at": finished_at.isoformat().replace("+00:00", "Z"),
+            "duration_seconds": duration_exc,
+            "status": "failed",
+            "collectors": {
+                "gitlab": {"status": "FAILED", "records_processed": {}},
+                "jira": {"status": "FAILED", "records_processed": {}},
+            },
+            "snapshots_generated": 0,
+            "snapshot_generated_at": None,
+        }
         _finish_nightly_sync_log(
             session_factory,
             log_id=nightly_log_id,
             status="failed",
             records_processed=records_processed,
             error_message=" | ".join(errors)[:4000],
+            details_json=failure_details,
         )
         _notify_webhook(webhook_url, {"status": "failed", "records_processed": records_processed})
         raise

@@ -103,6 +103,9 @@ Record only actual active work time.
 | DEVOPS-466 | jira-update | 2026-04-01 14:33 | 2026-04-01 14:52 | 19m | Jira DEVOPS-467-485: Original Estimate + Solution (ADF), Done transitions; parent DEVOPS-466 solution and closure prep |
 
 | DEVOPS-466 | implementation | 2026-04-01 21:30 | 2026-04-01 21:45 | 15m | Fixing after secondary review: 13 pipeline integrity/reliability fixes (F1-F13), test updates, lint, commit/push |
+| DEVOPS-440 | implementation | 2026-04-01 23:05 | 2026-04-01 23:40 | 35m | Signed session cookie (Starlette SessionMiddleware), auth + admin config routes, CORS, ErrorResponse handlers, /api/health, scheduler reschedule on PATCH, unit tests (SQLite); integration tests skip without Docker |
+| DEVOPS-440 | implementation | 2026-04-02 00:05 | 2026-04-02 00:45 | 40m | Public API: metrics current/history/repository, repositories list, sync/status, full /api/health; sync_log.details_json + pipeline payload; metrics_public_service aggregation; export_openapi script; migration 20260402_0006; public route unit tests |
+| DEVOPS-440 | jira-update | 2026-04-02 00:15 | 2026-04-02 00:22 | 7m | Jira Solution (ADF), worklogs 35m + 40m per worklog-time-log, workflow to Done (Close issue + transition worklog), implementation comment, git commit/push |
 
 ## Active session template
 
