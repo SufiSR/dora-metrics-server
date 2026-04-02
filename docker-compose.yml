@@ -75,11 +75,10 @@ services:
         # proxy rewrite, keeping the session cookie on the same origin.
         # For a Caddy-fronted production setup use: https://dora.example.com/api
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+        # BACKEND_INTERNAL_URL is also baked at build time into the rewrite rules
+        # so the Next.js server knows how to reach the backend from inside Docker.
+        BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
     restart: unless-stopped
-    environment:
-      # Runtime URL used by the Next.js server-side proxy to reach the backend.
-      # Must be the internal Docker service URL (not localhost).
-      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     networks:

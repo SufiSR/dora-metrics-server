@@ -22,6 +22,11 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Server-side proxy destination baked into rewrite rules at build time.
+# For Docker Compose: http://backend:8000  For standalone non-Docker: http://localhost:8000
+ARG BACKEND_INTERNAL_URL=http://localhost:8000
+ENV BACKEND_INTERNAL_URL=${BACKEND_INTERNAL_URL}
+
 RUN npm run build
 
 
