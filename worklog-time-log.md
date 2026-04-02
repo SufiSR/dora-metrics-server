@@ -134,3 +134,5 @@ Every session MUST follow this two-step pattern:
 Duration = end minus start in minutes. Never estimate or guess.
 If the OPEN entry is missing, ask the user for the actual start time before closing.
 Never log to Jira until the entry is finalized (no OPEN or — remaining).
+
+| DEVOPS-487 | implementation | 2026-04-02 15:48 | 2026-04-02 15:56 | 8m | Fixed admin cookie name in Next middleware; login success UI; Jira DEVOPS-487; commit |

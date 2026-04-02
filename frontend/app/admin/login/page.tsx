@@ -13,17 +13,19 @@ function AdminLoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setLoading(true);
     try {
       await adminApiClient.login({ username, password });
+      setSuccess("Signed in. Redirecting…");
       router.push(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
       setLoading(false);
     }
   }
@@ -100,13 +102,25 @@ function AdminLoginForm() {
               </div>
             )}
 
+            {success && (
+              <div
+                role="status"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary-container/30 text-on-surface text-xs font-editorial"
+              >
+                <span className="material-symbols-outlined text-base shrink-0 text-primary">
+                  check_circle
+                </span>
+                {success}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary font-editorial font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-100 transition-all disabled:opacity-60 disabled:pointer-events-none"
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {success ? "Redirecting…" : loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
         </div>

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Protects /admin/* routes by checking for the existence of the backend
- * session cookie. The backend (FastAPI SessionMiddleware) is the authoritative
- * guard — a 401 from the API will redirect to login. This middleware provides
- * a fast UX redirect before a full page load.
+ * Protects /admin/* routes by checking for the signed session cookie issued
+ * by the backend (`dora_session`). The API remains authoritative for admin
+ * routes; this middleware only avoids a flash of protected content.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,8 +13,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // All other /admin/* paths require a session cookie
-  const sessionCookie = request.cookies.get("session");
+  // Must match backend SessionMiddleware session_cookie (see app/main.py: dora_session).
+  const sessionCookie = request.cookies.get("dora_session");
   if (!sessionCookie?.value) {
     const loginUrl = new URL("/admin/login", request.url);
     loginUrl.searchParams.set("next", pathname);
