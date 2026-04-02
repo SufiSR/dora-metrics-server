@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config_schema import ConfigurationSchema
@@ -50,6 +50,16 @@ def build_sync_status_response(
         .order_by(SyncLog.started_at.desc())
         .limit(1)
     ).first()
+    if running_row is not None:
+        latest_finished_any = db.scalar(
+            select(func.max(SyncLog.finished_at)).where(
+                SyncLog.source == "nightly",
+                SyncLog.status != "running",
+                SyncLog.finished_at.isnot(None),
+            )
+        )
+        if latest_finished_any is not None and running_row.started_at < latest_finished_any:
+            running_row = None
     pipeline_in_progress = running_row is not None
     pipeline_run_started_at = running_row.started_at if running_row else None
     pipeline_run_trigger: str | None = None
@@ -134,6 +144,10 @@ def build_sync_status_response(
     if not isinstance(snaps, int):
         snaps = 0
 
+    err_msg = row.error_message if isinstance(row.error_message, str) else None
+    if err_msg is not None and not err_msg.strip():
+        err_msg = None
+
     last_block = LastSyncBlock(
         started_at=started_at,
         finished_at=finished_at,
@@ -142,6 +156,7 @@ def build_sync_status_response(
         collectors=collectors,
         snapshots_generated=int(snaps),
         snapshot_generated_at=snap_at,
+        error_message=err_msg,
     )
 
     return SyncStatusResponse(

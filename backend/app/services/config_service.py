@@ -41,6 +41,25 @@ def _merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return merged
 
 
+def _coerce_gitlab_project_paths_from_poc_shape(merged: dict[str, Any]) -> None:
+    """Map POC-style ``gitlab.project_path`` (singular string) to ``project_paths`` when needed."""
+    gl = merged.get("gitlab")
+    if not isinstance(gl, dict):
+        return
+    paths = gl.get("project_paths")
+    singular = gl.get("project_path")
+    normalized_paths: list[str] = []
+    if isinstance(paths, list):
+        normalized_paths = [p.strip() for p in paths if isinstance(p, str) and p.strip()]
+    if normalized_paths:
+        gl["project_paths"] = normalized_paths
+        gl.pop("project_path", None)
+        return
+    if isinstance(singular, str) and singular.strip():
+        gl["project_paths"] = [singular.strip()]
+    gl.pop("project_path", None)
+
+
 def _split_csv(value: str | None) -> list[str]:
     if not value:
         return []
@@ -209,7 +228,24 @@ def _apply_db_overrides(
         settings["gitlab"] = {
             "project_paths": _to_string_list(settings.get("gitlab_project_paths"))
         }
-    return _merge_dict(config_payload, settings)
+    merged = _merge_dict(config_payload, settings)
+    # Admin UI may persist project_paths: [] meaning "not set"; do not wipe YAML/env defaults.
+    gl = merged.get("gitlab")
+    if isinstance(gl, dict):
+        pp = gl.get("project_paths")
+        if isinstance(pp, list) and len(pp) == 0:
+            base_gl = config_payload.get("gitlab")
+            if isinstance(base_gl, dict):
+                base_pp = base_gl.get("project_paths")
+                if isinstance(base_pp, list) and base_pp:
+                    gl["project_paths"] = [
+                        str(p).strip() for p in base_pp if isinstance(p, str) and str(p).strip()
+                    ]
+                else:
+                    gl.pop("project_paths", None)
+            else:
+                gl.pop("project_paths", None)
+    return merged
 
 
 def load_runtime_config(db: Session | None = None) -> RuntimeConfig:
@@ -222,6 +258,7 @@ def load_runtime_config(db: Session | None = None) -> RuntimeConfig:
         app_config = db.get(AppConfiguration, 1)
         merged = _apply_db_overrides(merged, app_config)
 
+    _coerce_gitlab_project_paths_from_poc_shape(merged)
     config = _apply_env_overrides(ConfigurationSchema.model_validate(merged))
 
     env_gitlab_token = _env_text("GITLAB_TOKEN") or _env_text("GITLAB_API_TOKEN")

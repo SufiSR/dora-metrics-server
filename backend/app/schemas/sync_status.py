@@ -22,6 +22,7 @@ class LastSyncBlock(BaseModel):
     collectors: dict[str, CollectorStatusBlock]
     snapshots_generated: int
     snapshot_generated_at: datetime | None
+    error_message: str | None = None
 
 
 class SyncStatusResponse(BaseModel):

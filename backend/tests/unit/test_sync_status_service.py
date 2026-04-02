@@ -65,6 +65,47 @@ def test_build_sync_status_no_log(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.pipeline_run_trigger is None
 
 
+def test_build_sync_status_ignores_stale_running_when_later_finished_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.sync_status_service.get_scheduler",
+        lambda: None,
+    )
+    stale_start = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
+    finished_ok = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    cfg = ConfigurationSchema()
+    with _session() as db:
+        db.add(
+            SyncLog(
+                id=1,
+                source="nightly",
+                started_at=stale_start,
+                finished_at=None,
+                status="running",
+                records_processed=None,
+                error_message=None,
+                details_json={"trigger": "manual"},
+            )
+        )
+        db.add(
+            SyncLog(
+                id=2,
+                source="nightly",
+                started_at=datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc),
+                finished_at=finished_ok,
+                status="success",
+                records_processed=1,
+                error_message=None,
+                details_json={"trigger": "manual", "collectors": {}},
+            )
+        )
+        db.commit()
+        resp = build_sync_status_response(db, config=cfg)
+    assert resp.pipeline_in_progress is False
+    assert resp.pipeline_run_started_at is None
+
+
 def test_build_sync_status_pipeline_in_progress(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.services.sync_status_service.get_scheduler",

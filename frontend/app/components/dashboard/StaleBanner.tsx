@@ -10,23 +10,28 @@ export function StaleBanner() {
 
   if (isLoading) return null;
 
-  const isFailed  = data?.status === "FAILED";
-  const isPartial = data?.status === "PARTIAL_FAILURE";
-  const isStale   = data?.last_sync_at
-    ? isOlderThan(data.last_sync_at, STALE_THRESHOLD_MS)
+  const last = data?.last_sync;
+  const status = data?.pipeline_in_progress ? "RUNNING" : last?.status;
+  const isFailed = status === "FAILED";
+  const isPartial = status === "PARTIAL_FAILURE";
+  const lastOkAt =
+    data?.last_successful_sync_at ?? last?.finished_at ?? null;
+  const isStale = lastOkAt
+    ? isOlderThan(lastOkAt, STALE_THRESHOLD_MS)
     : false;
+  const errDetail = last?.error_message?.trim() || null;
 
   if (!isFailed && !isPartial && !isStale && !isError) return null;
 
   const message = isError
     ? "Unable to retrieve sync status."
     : isFailed
-    ? `Last sync failed${data?.details ? `: ${data.details}` : "."}`
-    : isPartial
-    ? `Last sync completed with partial failures${data?.details ? `: ${data.details}` : "."}`
-    : `Data may be stale — last successful sync was ${
-        data?.last_sync_at ? formatDateTime(data.last_sync_at) : "unknown"
-      }.`;
+      ? `Last sync failed${errDetail ? `: ${errDetail}` : "."}`
+      : isPartial
+        ? `Last sync completed with partial failures${errDetail ? `: ${errDetail}` : "."}`
+        : `Data may be stale — last successful sync was ${
+            lastOkAt ? formatDateTime(lastOkAt) : "unknown"
+          }.`;
 
   return (
     <div

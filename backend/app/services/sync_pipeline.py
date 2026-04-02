@@ -319,16 +319,41 @@ def _notify_webhook(url: str | None, payload: dict[str, str | int]) -> None:
 
 def _resolve_orphaned_sync_logs(session_factory: Callable[[], Session]) -> None:
     def _resolve(db: Session) -> int:
-        threshold = datetime.now(timezone.utc) - timedelta(hours=4)
+        now = datetime.now(timezone.utc)
+        threshold = now - timedelta(hours=4)
         db.execute(
             update(SyncLog)
             .where(SyncLog.status == "running", SyncLog.started_at < threshold)
             .values(
                 status="crashed",
-                finished_at=datetime.now(timezone.utc),
+                finished_at=now,
                 error_message="Resolved as crashed: process did not complete",
             )
         )
+        latest_finished = db.scalar(
+            select(func.max(SyncLog.finished_at)).where(
+                SyncLog.source == "nightly",
+                SyncLog.status != "running",
+                SyncLog.finished_at.isnot(None),
+            )
+        )
+        if latest_finished is not None:
+            db.execute(
+                update(SyncLog)
+                .where(
+                    SyncLog.source == "nightly",
+                    SyncLog.status == "running",
+                    SyncLog.started_at < latest_finished,
+                )
+                .values(
+                    status="crashed",
+                    finished_at=latest_finished,
+                    error_message=(
+                        "Stale running entry: a later nightly sync already finished "
+                        "(abandoned worker or restart)"
+                    ),
+                )
+            )
         db.commit()
         return 0
 

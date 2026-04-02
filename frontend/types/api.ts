@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type DoraLevel = "ELITE" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
-export type SyncStatus = "SUCCESS" | "PARTIAL_FAILURE" | "FAILED" | "RUNNING";
+export type SyncRunStatus = "SUCCESS" | "PARTIAL_FAILURE" | "FAILED" | "RUNNING";
 export type PeriodType = "30d" | "quarterly" | "yearly";
 
 // ── Metrics current ──────────────────────────────────────────────────────────
@@ -44,13 +44,32 @@ export interface MetricsHistoryResponse {
   data_points: MetricDataPoint[];
 }
 
-// ── Sync status ──────────────────────────────────────────────────────────────
+// ── Sync status (GET /api/sync/status) ───────────────────────────────────────
+
+export interface CollectorStatusBlock {
+  status: string;
+  records_processed: Record<string, number>;
+}
+
+export interface LastSyncBlock {
+  started_at: string;
+  finished_at: string | null;
+  duration_seconds: number | null;
+  status: "SUCCESS" | "PARTIAL_FAILURE" | "FAILED";
+  collectors: Record<string, CollectorStatusBlock>;
+  snapshots_generated: number;
+  snapshot_generated_at: string | null;
+  error_message?: string | null;
+}
 
 export interface SyncStatusResponse {
-  last_sync_at: string | null;
-  status: SyncStatus;
-  next_sync_at: string | null;
-  details: string | null;
+  last_sync: LastSyncBlock | null;
+  last_successful_sync_at: string | null;
+  next_scheduled_sync: string | null;
+  sync_schedule_cron: string;
+  pipeline_in_progress: boolean;
+  pipeline_run_started_at: string | null;
+  pipeline_run_trigger: string | null;
 }
 
 // ── Repositories ─────────────────────────────────────────────────────────────
@@ -68,7 +87,7 @@ export interface RepositoriesResponse {
   repositories: RepositoryMetrics[];
 }
 
-// ── Error response ────────────────────────────────────────────────────────────
+// ── Error response ───────────────────────────────────────────────────────────
 
 export interface ApiError {
   detail: string;

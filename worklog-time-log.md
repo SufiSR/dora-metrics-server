@@ -152,3 +152,5 @@ Never log to Jira until the entry is finalized (no OPEN or — remaining).
 | adhoc | investigation | 2026-04-02 18:16 | 2026-04-02 18:21 | 5m | DB table counts and latest timestamps (Docker backend + db) |
 | DEVOPS-491 | implementation | — | — | 12m | Jira worklog (compose/logging/JQL/sync floor/investigation); Bug Subtask DEVOPS-488; Done |
 | DEVOPS-491 | commit | 2026-04-02 18:50 | 2026-04-02 18:51 | 1m | Git commit and push to GitLab |
+| adhoc | bugfix | 2026-04-02 18:53 | 2026-04-02 18:57 | 4m | GitLab monitored path: dev/plunet like POC; configuration.yml + env examples; YAML project_path coercion |
+| DEVOPS-429 | implementation | 2026-04-02 19:15 | 2026-04-02 19:23 | 8m | Docker pipeline: fix empty DB project_paths override, stale nightly running rows, sync status + frontend types; GitLab dev/plunet default; Jira hydrate 404 skip |

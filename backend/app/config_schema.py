@@ -14,7 +14,10 @@ class BackendConfig(BaseModel):
 
 class GitLabConfig(BaseModel):
     base_url: str = "https://gitlab.plunet.com"
-    project_paths: list[str] = Field(default_factory=list)
+    project_paths: list[str] = Field(
+        default_factory=lambda: ["dev/plunet"],
+        description="GitLab URL path after host (e.g. dev/plunet for https://gitlab.plunet.com/dev/plunet)",
+    )
     target_branches: list[str] = Field(default_factory=lambda: ["master", "9.x", "10.x", "11.x"])
     non_customer_release_markers: list[str] = Field(default_factory=lambda: ["rc", "beta"])
 

@@ -711,12 +711,18 @@ def collect_gitlab_tags_and_releases(
     per_page: int = 100,
     mr_mapping_cooldown_seconds: float = 0.05,
 ) -> int:
+    project_paths, target_branches, markers = _merged_gitlab_settings(config)
+    if not project_paths:
+        raise RuntimeError(
+            "No GitLab project_paths configured. Set gitlab.project_paths in configuration.yml "
+            "(default dev/plunet), GITLAB_PROJECT_PATHS, or admin GitLab settings."
+        )
+
     started_at = datetime.now(timezone.utc)
     sync_log = SyncLog(source="gitlab", started_at=started_at, status="running")
     db.add(sync_log)
     db.flush()
 
-    project_paths, target_branches, markers = _merged_gitlab_settings(config)
     marker_re = _markers_regex(markers)
     processed = 0
     logger.info(

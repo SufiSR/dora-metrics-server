@@ -64,6 +64,35 @@ def test_runtime_tokens_resolve_env_then_db_encrypted(monkeypatch) -> None:
     assert runtime_from_env.jira_token == "jira-env-token"
 
 
+def test_runtime_config_empty_db_project_paths_keeps_yaml(monkeypatch) -> None:
+    """Admin must not persist [] and wipe YAML defaults (empty means inherit)."""
+    monkeypatch.setattr(
+        config_service,
+        "_load_yaml_config",
+        lambda: {"gitlab": {"project_paths": ["dev/plunet"]}},
+    )
+    monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", "devops-438-key")
+    app_config = AppConfiguration(
+        id=1,
+        settings_json={"gitlab": {"project_paths": []}},
+    )
+    runtime = config_service.load_runtime_config(db=_FakeSession(app_config))
+    assert runtime.settings.gitlab.project_paths == ["dev/plunet"]
+
+
+def test_runtime_config_gitlab_project_path_poc_singular(monkeypatch) -> None:
+    """POC YAML uses ``gitlab.project_path``; product uses ``project_paths`` list."""
+    monkeypatch.setattr(
+        config_service,
+        "_load_yaml_config",
+        lambda: {"gitlab": {"base_url": "https://gl.example", "project_path": "dev/plunet"}},
+    )
+    monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", "devops-438-key")
+    runtime = config_service.load_runtime_config(db=_FakeSession(None))
+    assert runtime.settings.gitlab.project_paths == ["dev/plunet"]
+    assert runtime.settings.gitlab.base_url == "https://gl.example"
+
+
 def test_runtime_jira_user_email_env_then_db(monkeypatch) -> None:
     monkeypatch.setattr(config_service, "_load_yaml_config", lambda: {})
     monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", "devops-438-key")

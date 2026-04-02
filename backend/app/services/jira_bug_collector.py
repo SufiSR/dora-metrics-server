@@ -630,7 +630,14 @@ def hydrate_merge_request_jira_ready_for_qa(
                     .values(jira_ready_for_qa_at=rfq)
                 )
                 touched += int(result.rowcount or 0)
-            except Exception:
+            except Exception as exc:
+                err = str(exc)
+                if "Jira API request failed: 404" in err:
+                    logger.warning(
+                        "hydrate_jira_ready_for_qa: issue not in Jira (404), skipping %s",
+                        issue_key,
+                    )
+                    continue
                 logger.exception("hydrate_jira_ready_for_qa failed for %s", issue_key)
     db.commit()
     return touched
