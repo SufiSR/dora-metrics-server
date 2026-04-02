@@ -1,8 +1,21 @@
+import { HeaderBar } from "./components/header/HeaderBar";
+import { MetricGrid } from "./components/dashboard/MetricGrid";
+import { TrendChart } from "./components/dashboard/TrendChart";
+import { StaleBanner } from "./components/dashboard/StaleBanner";
+import { MetricModal } from "./components/dashboard/MetricModal";
+import { LeadPostProductionTable } from "./components/dashboard/LeadPostProductionTable";
+
 export default function HomePage() {
   return (
-    <main>
-      <h1>DORA Metrics</h1>
-      <p>Frontend baseline is initialized.</p>
-    </main>
+    <div className="bg-background text-on-background min-h-screen">
+      <HeaderBar />
+      <main className="max-w-[1440px] mx-auto px-6 py-8 md:px-8 space-y-10">
+        <StaleBanner />
+        <MetricGrid />
+        <TrendChart />
+        <LeadPostProductionTable />
+      </main>
+      <MetricModal />
+    </div>
   );
 }

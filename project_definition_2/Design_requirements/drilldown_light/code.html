@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Deployment Frequency | Editorial Engineering</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed-dim": "#ffb783",
+              "secondary-fixed-dim": "#c0c1ff",
+              "surface-container-low": "#f3f4f5",
+              "on-surface": "#191c1d",
+              "surface-container": "#edeeef",
+              "on-tertiary": "#ffffff",
+              "on-background": "#191c1d",
+              "surface-tint": "#494bd6",
+              "primary-fixed-dim": "#c0c1ff",
+              "inverse-primary": "#c0c1ff",
+              "primary-fixed": "#e1e0ff",
+              "on-secondary-fixed": "#13144a",
+              "background": "#f8f9fa",
+              "on-primary-fixed-variant": "#2f2ebe",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed-variant": "#703700",
+              "on-tertiary-container": "#fffbff",
+              "tertiary": "#904900",
+              "outline": "#767586",
+              "on-secondary": "#ffffff",
+              "on-secondary-container": "#494b83",
+              "secondary": "#575992",
+              "inverse-on-surface": "#f0f1f2",
+              "primary-container": "#6063ee",
+              "surface-dim": "#d9dadb",
+              "surface-bright": "#f8f9fa",
+              "secondary-fixed": "#e1e0ff",
+              "secondary-container": "#bdbefe",
+              "on-primary-fixed": "#07006c",
+              "surface-container-highest": "#e1e3e4",
+              "error": "#ba1a1a",
+              "surface-container-lowest": "#ffffff",
+              "inverse-surface": "#2e3132",
+              "primary": "#4648d4",
+              "outline-variant": "#c7c4d7",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#404178",
+              "on-error": "#ffffff",
+              "on-primary-container": "#fffbff",
+              "on-surface-variant": "#464554",
+              "surface-container-high": "#e7e8e9",
+              "on-primary": "#ffffff",
+              "tertiary-fixed": "#ffdcc5",
+              "surface-variant": "#e1e3e4",
+              "tertiary-container": "#b55d00",
+              "on-tertiary-fixed": "#301400",
+              "surface": "#f8f9fa"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .font-space {
+        font-family: 'Space Grotesk', sans-serif;
+      }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky bg-white dark:bg-slate-950 flex items-center justify-between px-6 py-3 w-full z-50">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-indigo-600 dark:text-indigo-400 font-space">Editorial Engineering</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-indigo-600 font-bold border-b-2 border-indigo-600 font-space tracking-tight transition-colors duration-200" href="#">Analytics</a>
+<a class="text-slate-500 hover:text-slate-900 font-space tracking-tight transition-colors duration-200" href="#">Deployment</a>
+<a class="text-slate-500 hover:text-slate-900 font-space tracking-tight transition-colors duration-200" href="#">Incidents</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm focus:ring-1 focus:ring-primary focus:bg-white transition-all" placeholder="Search metrics..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 hover:bg-slate-50 transition-colors rounded-full text-slate-500"><span class="material-symbols-outlined">sync</span></button>
+<button class="p-2 hover:bg-slate-50 transition-colors rounded-full text-slate-500"><span class="material-symbols-outlined">light_mode</span></button>
+<button class="p-2 hover:bg-slate-50 transition-colors rounded-full text-slate-500"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</div>
+</header>
+<div class="flex min-h-[calc(100vh-64px)]">
+<!-- SideNavBar -->
+<aside class="hidden lg:flex h-[calc(100vh-64px)] w-64 bg-slate-50 dark:bg-slate-900 flex flex-col p-4 space-y-2 sticky top-16">
+<div class="px-3 py-4">
+<h3 class="font-space text-sm uppercase tracking-wider text-slate-600 mb-1">Admin Console</h3>
+<p class="text-xs text-slate-400">Editorial Engineering</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 bg-white dark:bg-slate-800 text-indigo-600 font-bold rounded-lg shadow-sm font-space text-sm uppercase tracking-wider transition-all duration-300" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bar_chart</span>
+                Analytics
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-space text-sm uppercase tracking-wider transition-all duration-300" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+                Deployment
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-space text-sm uppercase tracking-wider transition-all duration-300" href="#">
+<span class="material-symbols-outlined">emergency</span>
+                Incidents
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-space text-sm uppercase tracking-wider transition-all duration-300" href="#">
+<span class="material-symbols-outlined">history</span>
+                Change Log
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-space text-sm uppercase tracking-wider transition-all duration-300" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+<div class="mt-auto pt-4 space-y-2">
+<button class="w-full py-2.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-xl font-space text-sm font-bold shadow-lg shadow-indigo-100 mb-4">New Report</button>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-indigo-500 font-space text-sm uppercase tracking-wider transition-all" href="#">
+<span class="material-symbols-outlined">help</span>
+                    Support
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-indigo-500 font-space text-sm uppercase tracking-wider transition-all" href="#">
+<span class="material-symbols-outlined">logout</span>
+                    Logout
+                </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 px-8 py-12 max-w-7xl mx-auto w-full">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 text-xs font-space uppercase tracking-widest text-slate-400 mb-8">
+<a class="hover:text-primary transition-colors" href="#">DORA Metrics</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-on-surface font-bold">Deployment Frequency</span>
+</nav>
+<!-- Hero Section: Editorial Metric Card -->
+<section class="mb-20">
+<div class="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-100 pb-12">
+<div class="space-y-2">
+<span class="font-space text-xs font-bold uppercase tracking-[0.2em] text-primary">Core Performance Metric</span>
+<h1 class="font-space text-6xl font-bold tracking-tighter text-on-surface">Deployment Frequency</h1>
+<p class="text-slate-500 max-w-xl font-body text-lg">The rate at which your organization successfully releases to production. This is a primary proxy for engineering velocity and agility.</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<div class="bg-primary px-4 py-1.5 rounded-md">
+<span class="font-space text-xs font-black uppercase tracking-wider text-on-primary">ELITE</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-space text-7xl font-bold tracking-tighter text-on-surface">18.4<span class="text-3xl text-slate-300 ml-2">/day</span></span>
+<span class="font-space text-xs font-bold uppercase tracking-widest text-primary">+12.4% vs last month</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Insights -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-20">
+<!-- Main Chart Card -->
+<div class="md:col-span-8 bg-surface-container-lowest p-8 rounded-xl ring-1 ring-slate-100 shadow-sm">
+<div class="flex justify-between items-start mb-12">
+<div>
+<h3 class="font-space text-lg font-bold">Performance History</h3>
+<p class="text-sm text-slate-400 font-body">Daily deployment volume over the last 30 days</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container text-xs font-space font-bold rounded-lg hover:bg-surface-container-high transition-colors">30D</button>
+<button class="px-3 py-1 text-xs font-space font-bold text-slate-400 hover:text-on-surface transition-colors">90D</button>
+</div>
+</div>
+<!-- Chart Placeholder with Editorial Style -->
+<div class="h-64 flex items-end justify-between gap-2 relative">
+<!-- Simulated Chart Bars with Tonal Depth -->
+<div class="w-full h-full absolute inset-0 flex items-end justify-between pointer-events-none">
+<div class="w-[2%] bg-slate-100 h-[40%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[55%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[35%] rounded-t-sm"></div>
+<div class="w-[2%] bg-primary h-[85%] rounded-t-sm opacity-80"></div>
+<div class="w-[2%] bg-primary h-[95%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[60%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[45%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[70%] rounded-t-sm"></div>
+<div class="w-[2%] bg-primary h-[65%] rounded-t-sm opacity-60"></div>
+<div class="w-[2%] bg-slate-100 h-[40%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[55%] rounded-t-sm"></div>
+<div class="w-[2%] bg-primary h-[85%] rounded-t-sm"></div>
+<div class="w-[2%] bg-primary h-[75%] rounded-t-sm opacity-90"></div>
+<div class="w-[2%] bg-slate-100 h-[30%] rounded-t-sm"></div>
+<div class="w-[2%] bg-slate-100 h-[50%] rounded-t-sm"></div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-[1px] bg-slate-100"></div>
+</div>
+</div>
+<!-- Benchmarking Sidebar Card -->
+<div class="md:col-span-4 bg-surface-container p-8 rounded-xl flex flex-col justify-between">
+<div>
+<h3 class="font-space text-lg font-bold mb-1">Industry Benchmarks</h3>
+<p class="text-sm text-slate-500 font-body mb-8">How you compare to the 2024 State of DevOps report.</p>
+<div class="space-y-6">
+<div class="flex justify-between items-center group">
+<span class="font-space text-xs font-bold uppercase tracking-widest text-slate-400 group-hover:text-primary transition-colors">Elite</span>
+<span class="font-body text-sm font-medium">Multiple / Day</span>
+</div>
+<div class="flex justify-between items-center py-2 border-y border-slate-200/50">
+<span class="font-space text-xs font-bold uppercase tracking-widest text-indigo-600">Your Team</span>
+<span class="font-body text-sm font-bold text-indigo-600">18.4 / Day</span>
+</div>
+<div class="flex justify-between items-center opacity-60">
+<span class="font-space text-xs font-bold uppercase tracking-widest text-slate-400">High</span>
+<span class="font-body text-sm">Once / Week</span>
+</div>
+<div class="flex justify-between items-center opacity-40">
+<span class="material-symbols-outlined text-slate-400">lock</span>
+<span class="font-body text-xs text-slate-400">Medium &amp; Low Benchmarks</span>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-8 border-t border-slate-200/50">
+<a class="font-space text-xs font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 group" href="#">
+                            Download Report
+                            <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Detailed Analysis Table -->
+<section class="bg-surface-container-lowest rounded-xl ring-1 ring-slate-100 overflow-hidden shadow-sm">
+<div class="px-8 py-6 flex justify-between items-center">
+<h3 class="font-space text-lg font-bold uppercase tracking-wider">Deployment Log</h3>
+<button class="flex items-center gap-2 text-xs font-space font-bold uppercase tracking-widest text-slate-400 hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filters
+                    </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low border-none">
+<th class="px-8 py-4 font-space text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Service</th>
+<th class="px-8 py-4 font-space text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Deployment ID</th>
+<th class="px-8 py-4 font-space text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Status</th>
+<th class="px-8 py-4 font-space text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Environment</th>
+<th class="px-8 py-4 font-space text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Timestamp</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-8 py-4">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+<span class="font-body text-sm font-medium">auth-gateway</span>
+</div>
+</td>
+<td class="px-8 py-4 font-space text-xs text-slate-400 tracking-wider">#DEP-8842-12</td>
+<td class="px-8 py-4">
+<span class="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider font-space">Success</span>
+</td>
+<td class="px-8 py-4 text-sm font-body">Production-US</td>
+<td class="px-8 py-4 text-xs font-space text-slate-400">Oct 24, 14:22:10</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-8 py-4">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+<span class="font-body text-sm font-medium">payment-engine</span>
+</div>
+</td>
+<td class="px-8 py-4 font-space text-xs text-slate-400 tracking-wider">#DEP-8841-09</td>
+<td class="px-8 py-4">
+<span class="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider font-space">Success</span>
+</td>
+<td class="px-8 py-4 text-sm font-body">Production-EU</td>
+<td class="px-8 py-4 text-xs font-space text-slate-400">Oct 24, 13:05:44</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-8 py-4">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-amber-500"></div>
+<span class="font-body text-sm font-medium">inventory-service</span>
+</div>
+</td>
+<td class="px-8 py-4 font-space text-xs text-slate-400 tracking-wider">#DEP-8840-02</td>
+<td class="px-8 py-4">
+<span class="bg-amber-50 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider font-space">Retried</span>
+</td>
+<td class="px-8 py-4 text-sm font-body">Production-US</td>
+<td class="px-8 py-4 text-xs font-space text-slate-400">Oct 24, 12:44:12</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-slate-50 text-center">
+<button class="font-space text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors">View All Deployment History</button>
+</div>
+</section>
+</main>
+</div>
+<!-- Footer -->
+<footer class="w-full py-8 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800">
+<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="font-body text-xs text-slate-400">© 2024 Editorial Engineering. All rights reserved.</p>
+<div class="flex items-center gap-8">
+<a class="font-body text-xs text-slate-400 hover:text-indigo-500 transition-colors ease-out" href="#">Privacy Policy</a>
+<a class="font-body text-xs text-slate-400 hover:text-indigo-500 transition-colors ease-out" href="#">Terms of Service</a>
+<a class="font-body text-xs text-slate-400 hover:text-indigo-500 transition-colors ease-out" href="#">Documentation</a>
+</div>
+</div>
+</footer>
+</body></html>

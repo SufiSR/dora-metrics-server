@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "tertiary-fixed-dim": "#ffb783",
+            "secondary-fixed-dim": "#c0c1ff",
+            "surface-container-low": "#f3f4f5",
+            "on-surface": "#191c1d",
+            "surface-container": "#edeeef",
+            "on-tertiary": "#ffffff",
+            "on-background": "#191c1d",
+            "surface-tint": "#494bd6",
+            "primary-fixed-dim": "#c0c1ff",
+            "inverse-primary": "#c0c1ff",
+            "primary-fixed": "#e1e0ff",
+            "on-secondary-fixed": "#13144a",
+            "background": "#f8f9fa",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed-variant": "#703700",
+            "on-tertiary-container": "#fffbff",
+            "tertiary": "#904900",
+            "outline": "#767586",
+            "on-secondary": "#ffffff",
+            "on-secondary-container": "#494b83",
+            "secondary": "#575992",
+            "inverse-on-surface": "#f0f1f2",
+            "primary-container": "#6063ee",
+            "surface-dim": "#d9dadb",
+            "surface-bright": "#f8f9fa",
+            "secondary-fixed": "#e1e0ff",
+            "secondary-container": "#bdbefe",
+            "on-primary-fixed": "#07006c",
+            "surface-container-highest": "#e1e3e4",
+            "error": "#ba1a1a",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#2e3132",
+            "primary": "#4648d4",
+            "outline-variant": "#c7c4d7",
+            "on-error-container": "#93000a",
+            "on-secondary-fixed-variant": "#404178",
+            "on-error": "#ffffff",
+            "on-primary-container": "#fffbff",
+            "on-surface-variant": "#464554",
+            "surface-container-high": "#e7e8e9",
+            "on-primary": "#ffffff",
+            "tertiary-fixed": "#ffdcc5",
+            "surface-variant": "#e1e3e4",
+            "tertiary-container": "#b55d00",
+            "on-tertiary-fixed": "#301400",
+            "surface": "#f8f9fa"
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk"],
+            "body": ["Inter"],
+            "label": ["Space Grotesk"]
+          },
+          borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body min-h-screen flex">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-slate-50 dark:bg-slate-900 flex flex-col p-4 space-y-2 z-50">
+<div class="mb-8 px-2">
+<div class="text-indigo-600 font-black font-headline text-xl tracking-tighter">Admin Console</div>
+<div class="text-slate-500 font-['Space_Grotesk'] text-xs uppercase tracking-wider mt-1">Editorial Engineering</div>
+</div>
+<nav class="flex-1 flex flex-col space-y-1">
+<div class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all duration-300 font-['Space_Grotesk'] text-sm uppercase tracking-wider cursor-pointer group">
+<span class="material-symbols-outlined mr-3">bar_chart</span>
+<span>Analytics</span>
+</div>
+<div class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all duration-300 font-['Space_Grotesk'] text-sm uppercase tracking-wider cursor-pointer group">
+<span class="material-symbols-outlined mr-3">rocket_launch</span>
+<span>Deployment</span>
+</div>
+<div class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all duration-300 font-['Space_Grotesk'] text-sm uppercase tracking-wider cursor-pointer group">
+<span class="material-symbols-outlined mr-3">emergency</span>
+<span>Incidents</span>
+</div>
+<div class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all duration-300 font-['Space_Grotesk'] text-sm uppercase tracking-wider cursor-pointer group">
+<span class="material-symbols-outlined mr-3">history</span>
+<span>Change Log</span>
+</div>
+<div class="flex items-center px-4 py-3 bg-white dark:bg-slate-800 text-indigo-600 font-bold rounded-lg shadow-sm font-['Space_Grotesk'] text-sm uppercase tracking-wider cursor-pointer group">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span>Settings</span>
+</div>
+</nav>
+<div class="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800 space-y-1">
+<button class="w-full mb-4 bg-primary text-white py-3 rounded-xl font-headline font-bold text-sm hover:opacity-90 transition-opacity">New Report</button>
+<div class="flex items-center px-4 py-2 text-slate-400 hover:text-slate-600 font-['Space_Grotesk'] text-xs uppercase tracking-wider cursor-pointer transition-all">
+<span class="material-symbols-outlined mr-3 text-lg">help</span>
+<span>Support</span>
+</div>
+<div class="flex items-center px-4 py-2 text-slate-400 hover:text-slate-600 font-['Space_Grotesk'] text-xs uppercase tracking-wider cursor-pointer transition-all">
+<span class="material-symbols-outlined mr-3 text-lg">logout</span>
+<span>Logout</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky z-40 bg-white dark:bg-slate-950 flex items-center justify-between px-8 py-4">
+<div class="flex items-center space-x-8">
+<div class="font-['Space_Grotesk'] tracking-tight flex space-x-6 text-sm font-medium">
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Infrastructure</a>
+<a class="text-indigo-600 font-bold border-b-2 border-indigo-600" href="#">Integrations</a>
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Team Access</a>
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Billing</a>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low rounded-lg text-sm border-none focus:ring-2 focus:ring-primary w-64 transition-all" placeholder="Search config..." type="text"/>
+</div>
+<div class="flex items-center space-x-2">
+<button class="p-2 text-slate-500 hover:bg-slate-50 transition-colors rounded-full">
+<span class="material-symbols-outlined">sync</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-50 transition-colors rounded-full">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-50 transition-colors rounded-full">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="flex-1 px-12 py-10 max-w-6xl w-full mx-auto">
+<!-- Editorial Header -->
+<header class="mb-16">
+<div class="label-sm font-headline uppercase tracking-[0.1em] text-primary mb-2">Configuration / Toolchain</div>
+<h1 class="text-5xl font-headline font-bold tracking-tight text-on-surface mb-4">Integrations Pipeline</h1>
+<p class="text-slate-500 max-w-2xl leading-relaxed">
+          Manage your external engineering toolchain. Securely connect your version control systems and CI/CD pipelines to the Editorial Engine.
+        </p>
+</header>
+<!-- Bento-style Layout for Config -->
+<div class="grid grid-cols-12 gap-8 items-start">
+<!-- Sidebar Navigation for Tools -->
+<div class="col-span-3 space-y-4">
+<div class="bg-surface-container p-2 rounded-xl">
+<button class="w-full flex items-center justify-between p-3 rounded-lg bg-surface-container-lowest shadow-sm text-indigo-600 font-medium">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3">account_tree</span>
+<span>GitLab</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+</button>
+<button class="w-full flex items-center p-3 rounded-lg text-slate-500 hover:bg-surface-container-high transition-colors font-medium mt-1">
+<span class="material-symbols-outlined mr-3">task_alt</span>
+<span>Jira Software</span>
+</button>
+<button class="w-full flex items-center p-3 rounded-lg text-slate-500 hover:bg-surface-container-high transition-colors font-medium mt-1">
+<span class="material-symbols-outlined mr-3">terminal</span>
+<span>GitHub</span>
+</button>
+<button class="w-full flex items-center p-3 rounded-lg text-slate-500 hover:bg-surface-container-high transition-colors font-medium mt-1">
+<span class="material-symbols-outlined mr-3">dataset</span>
+<span>Confluence</span>
+</button>
+</div>
+<div class="bg-primary-container/10 p-6 rounded-xl relative overflow-hidden group">
+<div class="relative z-10">
+<div class="text-xs font-headline font-bold text-primary uppercase tracking-wider mb-2">Security Status</div>
+<div class="text-2xl font-headline font-bold text-on-surface mb-1">Elite</div>
+<div class="text-sm text-slate-600 leading-snug">All 4 connected tools are using encrypted RSA-4096 tokens.</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+<span class="material-symbols-outlined text-8xl">verified_user</span>
+</div>
+</div>
+</div>
+<!-- Main Configuration Form -->
+<div class="col-span-9 space-y-12">
+<!-- GitLab Section -->
+<section class="bg-surface-container-lowest p-10 rounded-2xl">
+<div class="flex justify-between items-start mb-10">
+<div>
+<h2 class="text-2xl font-headline font-semibold tracking-tight mb-1">GitLab API Configuration</h2>
+<p class="text-slate-400 text-sm">Configure the main repository provider for automated DORA metric extraction.</p>
+</div>
+<div class="bg-surface-container px-4 py-1.5 rounded-full flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-xs font-headline font-bold uppercase tracking-wider text-slate-700">Connected</span>
+</div>
+</div>
+<div class="space-y-8">
+<!-- Custom Form Fields -->
+<div class="grid grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="text-[10px] font-headline font-bold uppercase tracking-[0.1em] text-slate-400 px-1">Instance URL</label>
+<input class="w-full px-4 py-3 bg-surface-container-low border-b border-transparent focus:bg-surface-container-lowest focus:border-primary focus:ring-0 transition-all font-body text-slate-800" placeholder="https://gitlab.company.com" type="text" value="https://gitlab.editorial-eng.io"/>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-headline font-bold uppercase tracking-[0.1em] text-slate-400 px-1">Namespace ID</label>
+<input class="w-full px-4 py-3 bg-surface-container-low border-b border-transparent focus:bg-surface-container-lowest focus:border-primary focus:ring-0 transition-all font-body text-slate-800" placeholder="group-id-or-name" type="text" value="prod-ops-group-99"/>
+</div>
+</div>
+<div class="space-y-2 relative">
+<label class="text-[10px] font-headline font-bold uppercase tracking-[0.1em] text-slate-400 px-1">Personal Access Token</label>
+<div class="relative">
+<input class="w-full px-4 py-3 bg-surface-container-low border-b border-transparent focus:bg-surface-container-lowest focus:border-primary focus:ring-0 transition-all font-mono text-sm tracking-widest text-slate-800" placeholder="••••••••••••••••••••••••" type="password" value="glpat-q928374928374hfkjsdfhksjdf"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-xl">visibility</span>
+</button>
+</div>
+<p class="text-[10px] text-slate-400 px-1 italic">Token requires 'api', 'read_repository', and 'read_user' scopes.</p>
+</div>
+<div class="pt-6">
+<h3 class="text-sm font-headline font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center">
+<span class="mr-3">Security &amp; Verification</span>
+<span class="flex-1 h-[1px] bg-surface-container-high"></span>
+</h3>
+<div class="grid grid-cols-2 gap-6">
+<div class="p-4 bg-surface-container rounded-xl flex items-start space-x-4">
+<div class="mt-1">
+<span class="material-symbols-outlined text-indigo-600">shield</span>
+</div>
+<div>
+<div class="text-sm font-bold text-on-surface">SSL Verification</div>
+<div class="text-xs text-slate-500 mb-3">Enforce strict certificate checking for self-hosted instances.</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<div class="p-4 bg-surface-container rounded-xl flex items-start space-x-4">
+<div class="mt-1 text-slate-400">
+<span class="material-symbols-outlined">vpn_lock</span>
+</div>
+<div>
+<div class="text-sm font-bold text-on-surface">Webhook Secret</div>
+<div class="text-xs text-slate-500 mb-3">Validate incoming payloads from GitLab CI triggers.</div>
+<button class="text-xs font-headline font-bold text-primary uppercase border-b border-primary/20 hover:border-primary transition-all">Generate New Secret</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Notification/Alert Configuration -->
+<section class="bg-surface-container-low p-8 rounded-2xl border-l-4 border-primary">
+<div class="flex items-center space-x-6">
+<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-3xl">mark_email_unread</span>
+</div>
+<div class="flex-1">
+<h3 class="font-headline font-bold text-on-surface">Configuration Drift Alerts</h3>
+<p class="text-sm text-slate-500">Receive notifications if the integration's health score drops below 95% or if credentials are expiring.</p>
+</div>
+<button class="px-6 py-2.5 bg-white text-on-surface font-headline font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm hover:bg-slate-50 transition-colors">Configure</button>
+</div>
+</section>
+<!-- Footer Actions -->
+<div class="flex items-center justify-between pt-4 pb-20">
+<div class="flex items-center space-x-4">
+<button class="flex items-center text-slate-400 hover:text-error transition-colors text-sm font-headline font-bold uppercase tracking-widest">
+<span class="material-symbols-outlined text-lg mr-2">delete</span>
+                Disconnect GitLab
+              </button>
+</div>
+<div class="flex items-center space-x-4">
+<button class="px-8 py-3 bg-surface-container-high text-on-surface font-headline font-bold text-sm rounded-xl hover:bg-slate-200 transition-colors">Discard Changes</button>
+<button class="px-10 py-3 bg-gradient-to-r from-primary to-primary-container text-white font-headline font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-100 transition-all">Save Changes</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-8 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800">
+<div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+<div class="font-['Inter'] text-xs text-slate-400">© 2024 Editorial Engineering. All rights reserved.</div>
+<div class="flex items-center space-x-6">
+<a class="text-slate-400 hover:text-indigo-500 font-['Inter'] text-xs transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-400 hover:text-indigo-500 font-['Inter'] text-xs transition-colors" href="#">Terms of Service</a>
+<a class="text-slate-400 hover:text-indigo-500 font-['Inter'] text-xs transition-colors" href="#">Documentation</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- Sticky Toast Hint -->
+<div class="fixed bottom-10 right-10 bg-on-surface text-white p-4 rounded-xl shadow-2xl flex items-center space-x-4 transform translate-y-0 opacity-100 transition-all duration-500 z-[100]">
+<div class="bg-primary/20 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">info</span>
+</div>
+<div class="pr-4">
+<div class="text-xs font-headline font-bold uppercase tracking-wider">Unsaved Progress</div>
+<div class="text-[10px] text-slate-400">You have 3 modified fields in GitLab API</div>
+</div>
+<button class="p-1 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+</body></html>

@@ -106,6 +106,8 @@ Record only actual active work time.
 | DEVOPS-440 | implementation | 2026-04-01 23:05 | 2026-04-01 23:40 | 35m | Signed session cookie (Starlette SessionMiddleware), auth + admin config routes, CORS, ErrorResponse handlers, /api/health, scheduler reschedule on PATCH, unit tests (SQLite); integration tests skip without Docker |
 | DEVOPS-440 | implementation | 2026-04-02 00:05 | 2026-04-02 00:45 | 40m | Public API: metrics current/history/repository, repositories list, sync/status, full /api/health; sync_log.details_json + pipeline payload; metrics_public_service aggregation; export_openapi script; migration 20260402_0006; public route unit tests |
 | DEVOPS-440 | jira-update | 2026-04-02 00:15 | 2026-04-02 00:22 | 7m | Jira Solution (ADF), worklogs 35m + 40m per worklog-time-log, workflow to Done (Close issue + transition worklog), implementation comment, git commit/push |
+| DEVOPS-441 | planning | 2026-04-02 09:30 | 2026-04-02 09:50 | 20m | Reviewed DEVOPS-441, design requirements (DESIGN_LIGHT.md, HTML prototypes), identified dark mode token gap, drafted full 12-subtask implementation plan, got user approval on all 5 design decisions |
+| DEVOPS-466 | jira-update | 2026-04-02 20:00 | 2026-04-02 20:20 | 20m | Jira comment + worklog: short delivery recap for tests/docs push (commit 8f311f9); aligns with repo worklog-time-log |
 
 ## Active session template
 
