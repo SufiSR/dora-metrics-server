@@ -60,16 +60,27 @@ For each Jira issue, process one by one:
 - Add implementation considerations, constraints, trade-offs, and follow-up notes in issue comments.
 
 4) Time tracking requirements
-- Track actual development time per issue using Cursor WakaTime when possible.
+
+**Session timestamp protocol (mandatory — no exceptions):**
+
+- **START OF WORK:** The very first tool call when beginning any work session (planning, implementation, validation, jira-update) MUST be a write to `worklog-time-log.md` that appends an open session entry with the current datetime. Use the system prompt `Today's date` field and a best-effort HH:MM for the current time. Format:
+  ```
+  | DEVOPS-XXX | planning | 2026-04-02 14:30 | OPEN | — | Session started |
+  ```
+- **END OF WORK:** The very last tool call before declaring a session complete MUST update that open entry in `worklog-time-log.md` with the end datetime and calculated duration (end minus start). The `OPEN` placeholder and `—` duration must both be replaced. Format:
+  ```
+  | DEVOPS-XXX | planning | 2026-04-02 14:30 | 2026-04-02 14:52 | 22m | Session description |
+  ```
+- **Duration calculation rule:** Duration is always `end - start` in minutes. Never estimate, never guess, never round up to a "looks reasonable" value. If the start timestamp was not recorded (OPEN entry missing), ask the user for the actual start time before closing the session.
+- **Hard gate — no open entries at close time:** Before logging any Jira worklog, verify that the corresponding `worklog-time-log.md` entry is finalized (no `OPEN` or `—` remaining). If it is still open, close it first.
+
+**Other time tracking rules:**
 - Track only active work time (while the agent is actively doing implementation/debugging/validation).
-- Add tracked time details to the Jira issue (worklog/comment as configured).
 - Worklog entries must always represent actual elapsed active work, never estimates.
 - Never log forecast/expected hours as worklog time.
 - Never use approximated/manual guessed worklog values.
 - If exact active time is unknown or unclear, ask the user before adding or updating any Jira worklog.
 - Persist timing in-repo to avoid data loss: maintain `worklog-time-log.md` with per-issue sessions.
-- For every work session, record at minimum: issue key, activity type (`planning`/`implementation`/`validation`/`jira-update`), start timestamp, end timestamp, and calculated duration.
-- Add a session start entry when work begins and close it immediately when that session ends.
 - Use `worklog-time-log.md` as the source for Jira worklog totals (actual time only).
 - Hard gate: never add/update Jira worklog entries unless a matching finalized entry already exists in `worklog-time-log.md`.
 

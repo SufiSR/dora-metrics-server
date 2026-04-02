@@ -106,14 +106,24 @@ Record only actual active work time.
 | DEVOPS-440 | implementation | 2026-04-01 23:05 | 2026-04-01 23:40 | 35m | Signed session cookie (Starlette SessionMiddleware), auth + admin config routes, CORS, ErrorResponse handlers, /api/health, scheduler reschedule on PATCH, unit tests (SQLite); integration tests skip without Docker |
 | DEVOPS-440 | implementation | 2026-04-02 00:05 | 2026-04-02 00:45 | 40m | Public API: metrics current/history/repository, repositories list, sync/status, full /api/health; sync_log.details_json + pipeline payload; metrics_public_service aggregation; export_openapi script; migration 20260402_0006; public route unit tests |
 | DEVOPS-440 | jira-update | 2026-04-02 00:15 | 2026-04-02 00:22 | 7m | Jira Solution (ADF), worklogs 35m + 40m per worklog-time-log, workflow to Done (Close issue + transition worklog), implementation comment, git commit/push |
-| DEVOPS-441 | planning | 2026-04-02 09:30 | 2026-04-02 09:50 | 20m | Reviewed DEVOPS-441, design requirements (DESIGN_LIGHT.md, HTML prototypes), identified dark mode token gap, drafted full 12-subtask implementation plan, got user approval on all 5 design decisions |
+| DEVOPS-441 | planning | 2026-04-02 12:10 | 2026-04-02 12:31 | 21m | Reviewed DEVOPS-441, design requirements (DESIGN_LIGHT.md, HTML prototypes), identified dark mode token gap, drafted full 12-subtask implementation plan, got user approval on all 5 design decisions |
+| DEVOPS-441 | implementation | 2026-04-02 12:31 | 2026-04-02 12:49 | 18m | Full DEVOPS-441 implementation: DESIGN_DARK.md, Tailwind v4 CSS vars, next-themes, Zustand, API client, HeaderBar, MetricGrid, TrendChart, MetricModal, StaleBanner, embed route, CSP config, LeadPostProductionTable, 20 tests, typecheck+lint clean |
 | DEVOPS-466 | jira-update | 2026-04-02 20:00 | 2026-04-02 20:20 | 20m | Jira comment + worklog: short delivery recap for tests/docs push (commit 8f311f9); aligns with repo worklog-time-log |
 
-## Active session template
+## Session protocol
 
-- Issue: DEVOPS-XXX
-- Activity: planning|implementation|validation|jira-update
-- Start: YYYY-MM-DD HH:MM
-- End: YYYY-MM-DD HH:MM
-- Duration: Xm
-- Notes: short context
+Every session MUST follow this two-step pattern:
+
+**Step 1 — write this as the VERY FIRST tool call when work starts:**
+```
+| DEVOPS-XXX | planning | 2026-01-01 14:30 | OPEN | — | Session started |
+```
+
+**Step 2 — update to this as the VERY LAST tool call before declaring session complete:**
+```
+| DEVOPS-XXX | planning | 2026-01-01 14:30 | 2026-01-01 14:52 | 22m | Description of what was done |
+```
+
+Duration = end minus start in minutes. Never estimate or guess.
+If the OPEN entry is missing, ask the user for the actual start time before closing.
+Never log to Jira until the entry is finalized (no OPEN or — remaining).
