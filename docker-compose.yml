@@ -41,6 +41,10 @@ services:
     environment:
       # Override DATABASE_URL so it points to the db service on the internal network
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-dora}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dora_metrics}
+      # Repo-root YAML is not in the image; mount it so defaults (e.g. gitlab.project_paths) load.
+      DORA_CONFIG_PATH: /app/configuration.yml
+    volumes:
+      - ./configuration.yml:/app/configuration.yml:ro
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:

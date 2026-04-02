@@ -69,6 +69,8 @@ Edit `.env` and fill in all `replace-me` values:
 | `DORA_CORS_ORIGINS` | Public frontend URL, e.g. `https://dora.example.com` |
 | `NEXT_PUBLIC_API_URL` | Public backend API URL, e.g. `https://dora.example.com/api` |
 
+`docker-compose.yml` mounts the repository `configuration.yml` into the backend container and sets `DORA_CONFIG_PATH=/app/configuration.yml`, so non-secret defaults (including `gitlab.project_paths`) apply without duplicating them in `.env`. Override with `GITLAB_PROJECT_PATHS` (comma-separated) when needed.
+
 > **Security**: never commit `.env` to version control. Rotate secrets if they are accidentally exposed.
 
 ---
