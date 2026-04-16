@@ -48,6 +48,45 @@ def test_health_healthy_post_production() -> None:
     assert result.healthmemo == "post-production"
 
 
+def test_health_label_containing_test_is_pre_production() -> None:
+    """Any label with substring \"test\" (case-insensitive) classifies as pre-production."""
+    result = evaluate_issue_health(
+        issue_type="Bug",
+        parent_type=None,
+        parent_summary=None,
+        affects_versions=["10.1.0"],
+        fix_versions=["10.1.1"],
+        indicator_cf10114="https://plunethelp.atlassian.net/browse/CS-123",
+        customer_names=[],
+        parent_affects_versions=[],
+        parent_fix_versions=[],
+        parent_indicator_cf10114=None,
+        parent_customer_names=[],
+        labels=["AutoTest-Playwright-E2E", "Regression"],
+    )
+    assert result.healthy is True
+    assert result.healthmemo == "pre-production - label contains test"
+
+
+def test_health_label_test_case_insensitive() -> None:
+    result = evaluate_issue_health(
+        issue_type="Bug",
+        parent_type=None,
+        parent_summary=None,
+        affects_versions=["10.1.0"],
+        fix_versions=["10.1.1"],
+        indicator_cf10114="https://plunethelp.atlassian.net/browse/CS-123",
+        customer_names=[],
+        parent_affects_versions=[],
+        parent_fix_versions=[],
+        parent_indicator_cf10114=None,
+        parent_customer_names=[],
+        labels=["STAGING-TEST-RUN"],
+    )
+    assert result.healthy is True
+    assert result.healthmemo == "pre-production - label contains test"
+
+
 def test_health_pre_production_parent_override() -> None:
     result = evaluate_issue_health(
         issue_type="Bug Subtask",

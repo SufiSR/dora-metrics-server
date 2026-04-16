@@ -11,7 +11,7 @@ Ein Jira-Issue wird geholt, wenn:
 - innerhalb Lookback (z.B. 2 Jahre)
 
 Ob es sich um einen Production Bug handelt, wird **nicht per JQL gefiltert**, sondern per Health-Tag im Export bestimmt.
-Kriterien: `Affects Versions`, `cf[10114]` (EXALATE), `cf[10123]` (CUSTOMERNAME), Parent-Kontext, Fix Versions.
+Kriterien: `Affects Versions`, `cf[10114]` (EXALATE), `cf[10123]` (CUSTOMERNAME), Parent-Kontext, Fix Versions, **Labels** (Substring `test` → pre-production).
 
 ## Konsequenz (Interpretation)
 - `healthy = true` + `healthmemo = "post-production ..."` -> extern sichtbarer Production Bug
@@ -42,6 +42,12 @@ ELSE IF created < lookback_from:
     EXCLUDE issue
 ELSE:
     INCLUDE issue
+
+    # --- Label gate (pre-production, before primary health) ---
+    IF any Jira label contains substring "test" (case-insensitive):
+        healthy = true
+        healthmemo = "pre-production - label contains test"
+        DONE
 
     # --- Primary health check on the issue itself ---
     unhealthy_reasons = []

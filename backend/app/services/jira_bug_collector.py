@@ -139,6 +139,13 @@ def _has_next_minor_marker(values: list[str]) -> bool:
     return any(marker in value.lower() for value in values)
 
 
+def _labels_contain_test(labels: list[str] | None) -> bool:
+    """Treat issues with any label containing substring \"test\" as pre-production (CFR excludes)."""
+    if not labels:
+        return False
+    return any("test" in str(label).lower() for label in labels if str(label).strip())
+
+
 def evaluate_issue_health(
     *,
     issue_type: str,
@@ -152,7 +159,16 @@ def evaluate_issue_health(
     parent_fix_versions: list[str],
     parent_indicator_cf10114: str | None,
     parent_customer_names: list[str],
+    labels: list[str] | None = None,
 ) -> HealthResult:
+    if _labels_contain_test(labels):
+        return HealthResult(
+            True,
+            "pre-production - label contains test",
+            parent_affects_versions,
+            parent_fix_versions,
+        )
+
     reasons = _evaluate_primary_health(
         affects_versions=affects_versions,
         fix_versions=fix_versions,
@@ -779,6 +795,7 @@ def collect_jira_production_bugs(
                     parent_fix_versions=parent_fix_versions,
                     parent_indicator_cf10114=parent_indicator_cf10114,
                     parent_customer_names=parent_customer_names,
+                    labels=_to_string_list(issue_fields.get("labels")),
                 )
 
                 changelog_items, changelog_incomplete = (
