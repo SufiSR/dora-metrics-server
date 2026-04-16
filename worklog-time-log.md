@@ -1,4 +1,4 @@
-| DEVOPS-488 | jira-update | 2026-04-16 15:49 | OPEN | — | Commit and push workspace changes to GitLab |
+| DEVOPS-488 | jira-update | 2026-04-16 15:49 | 2026-04-16 15:50 | 1m | Commit and push workspace changes to GitLab |
 | DEVOPS-503 | jira-update | 2026-04-16 15:41 | 2026-04-16 15:47 | 6m | Created DEVOPS-503 under DEVOPS-488 (Confluence, assignee); booked 5 worklogs (50m) from worklog-time-log |
 | DEVOPS-429 | validation | 2026-04-16 15:36 | 2026-04-16 15:43 | 7m | Docker compose build --pull + up -d; db/backend/frontend healthy |
 | DEVOPS-429 | implementation | 2026-04-16 15:30 | 2026-04-16 15:38 | 8m | CFR semantics: count only post-production bugs (exclude pre-production memo); shared predicate; tests + UI copy |
