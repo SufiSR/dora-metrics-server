@@ -57,6 +57,16 @@ export interface AdminConfigPatch {
   notifications_webhook_url?: string | null;
 }
 
+export interface WebhookTestRequest {
+  webhook_url?: string | null;
+}
+
+export interface WebhookTestResponse {
+  delivered: boolean;
+  effective_webhook_url: string;
+  payload: Record<string, unknown>;
+}
+
 export interface OffsetPagination {
   page: number;
   size: number;

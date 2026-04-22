@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class AdminConfigResponse(BaseModel):
@@ -43,3 +45,13 @@ class AdminConfigPatch(BaseModel):
     sync_cron_minute: int | None = Field(default=None, ge=0, le=59)
     lookback_days: int | None = Field(default=None, ge=1)
     notifications_webhook_url: str | None = None
+
+
+class WebhookTestRequest(BaseModel):
+    webhook_url: HttpUrl | None = None
+
+
+class WebhookTestResponse(BaseModel):
+    delivered: bool
+    effective_webhook_url: str
+    payload: dict[str, Any]

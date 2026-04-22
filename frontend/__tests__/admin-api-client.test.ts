@@ -74,3 +74,19 @@ describe("adminApiClient.me", () => {
     expect(res.role).toBeNull();
   });
 });
+
+describe("adminApiClient.testWebhook", () => {
+  it("posts webhook_url for test send", async () => {
+    mockFetch(200, {
+      delivered: true,
+      effective_webhook_url: "https://hooks.example.test/ok",
+      payload: { event: "SYNC_TEST" },
+    });
+    await adminApiClient.testWebhook({ webhook_url: "https://hooks.example.test/ok" });
+    const call = (global.fetch as jest.Mock).mock.calls[0];
+    expect(call[1].method).toBe("POST");
+    expect(JSON.parse(call[1].body as string)).toEqual({
+      webhook_url: "https://hooks.example.test/ok",
+    });
+  });
+});

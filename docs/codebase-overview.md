@@ -65,7 +65,7 @@ The orchestrator is `run_nightly_sync` in `backend/app/services/sync_pipeline.py
 - **Cross-system steps** (`map_bugs_to_releases`, MTTR Alpha resolution, Jira RFQ hydration, lead post-production) run only when **both** collectors succeeded.
 - **Snapshots** run when **at least one** collector succeeded (even if derivations partially failed—warnings are logged).
 - **`SyncLog`** rows track runs; stale `running` rows older than four hours are marked `crashed`.
-- Optional **webhook** POST on completion (from config).
+- Optional **webhook** POST on completion (from config), now using structured event payloads (`SYNC_SUCCESS`, `SYNC_PARTIAL_FAILURE`, `SYNC_COMPLETE_FAILURE`).
 
 ```mermaid
 flowchart TD
@@ -159,6 +159,7 @@ flowchart TB
 | `GET /api/sync/status` | Public | Freshness / last sync derived from `SyncLog` + config |
 | `POST /api/auth/login`, `logout`, `GET /api/auth/me` | Login + session | Admin session cookie (`dora_session`) |
 | `GET|PATCH /api/admin/config` | Admin session | Read/patch `app_configuration` (masked secrets in responses) |
+| `POST /api/admin/config/webhook/test` | Admin session | Send a `SYNC_TEST` webhook to draft URL (or saved fallback) and return delivery result + payload |
 
 ```mermaid
 flowchart LR

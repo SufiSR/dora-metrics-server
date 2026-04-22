@@ -13,6 +13,7 @@ from app.models.release import Release
 from app.models.repository import Repository
 from app.services import sync_pipeline as sp
 from app.services.config_service import RuntimeConfig
+from app.services.webhook_service import send_webhook_notification
 
 
 def _session_maker() -> sessionmaker[Session]:
@@ -124,7 +125,8 @@ def test_finish_nightly_sync_log_when_row_missing() -> None:
 
 
 def test_notify_webhook_no_url() -> None:
-    sp._notify_webhook(None, {"status": "failed", "records_processed": 0})
+    delivered = send_webhook_notification(None, {"status": "failed", "records_processed": 0})
+    assert delivered is False
 
 
 def test_run_nightly_sync_failed_without_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,7 +159,7 @@ def test_run_nightly_sync_failed_without_tokens(monkeypatch: pytest.MonkeyPatch)
         return 0
 
     monkeypatch.setattr(sp, "_finish_nightly_sync_log", capture_finish)
-    monkeypatch.setattr(sp, "_notify_webhook", lambda *_a, **_k: None)
+    monkeypatch.setattr(sp, "send_webhook_notification", lambda *_a, **_k: True)
 
     payload = sp.run_nightly_sync(config=ConfigurationSchema(), session_factory=session_factory)
     assert payload["status"] == "failed"
@@ -206,7 +208,7 @@ def test_run_nightly_sync_partial_branch_logs_info(monkeypatch: pytest.MonkeyPat
         lambda _db, **_kwargs: 3,
     )
     monkeypatch.setattr(sp, "_finish_nightly_sync_log", lambda *a, **k: 0)
-    monkeypatch.setattr(sp, "_notify_webhook", lambda *a, **k: None)
+    monkeypatch.setattr(sp, "send_webhook_notification", lambda *a, **k: True)
     monkeypatch.setattr(
         sp,
         "_generate_snapshots",
@@ -276,10 +278,10 @@ def test_run_nightly_sync_exception_after_success_finishes_failed_log(
 
     monkeypatch.setattr(sp, "_finish_nightly_sync_log", capture_finish)
 
-    def boom(_url: str | None, _payload: dict[str, str | int]) -> None:
+    def boom(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         raise RuntimeError("webhook unavailable")
 
-    monkeypatch.setattr(sp, "_notify_webhook", boom)
+    monkeypatch.setattr(sp, "send_webhook_notification", boom)
 
     with pytest.raises(RuntimeError, match="webhook unavailable"):
         sp.run_nightly_sync(config=ConfigurationSchema(), session_factory=session_factory)

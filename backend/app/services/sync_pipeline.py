@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-import httpx
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
@@ -26,6 +25,7 @@ from app.services.jira_bug_collector import (
     hydrate_merge_request_jira_ready_for_qa,
 )
 from app.services.snapshot_service import refresh_snapshots
+from app.services.webhook_service import build_webhook_payload, send_webhook_notification
 
 logger = logging.getLogger(__name__)
 
@@ -406,16 +406,6 @@ def _compute_lead_post_production(db: Session, *, lookback_days: int) -> int:
 
 def _generate_snapshots(db: Session, config: ConfigurationSchema) -> int:
     return refresh_snapshots(db, config=config)
-
-
-def _notify_webhook(url: str | None, payload: dict[str, str | int]) -> None:
-    if not url:
-        return
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            client.post(url, json=payload)
-    except Exception:
-        logger.exception("nightly_sync webhook notification failed")
 
 
 def _resolve_orphaned_sync_logs(session_factory: Callable[[], Session]) -> None:
@@ -857,8 +847,22 @@ def run_nightly_sync(
             records_processed,
             snapshots_written,
         )
-        payload = {"status": status, "records_processed": records_processed}
-        _notify_webhook(webhook_url, payload)
+        event = {
+            "success": "SYNC_SUCCESS",
+            "partial_failure": "SYNC_PARTIAL_FAILURE",
+            "failed": "SYNC_COMPLETE_FAILURE",
+        }[status]
+        payload = build_webhook_payload(
+            event=event,
+            status=status,
+            trigger=trigger,
+            records_processed=records_processed,
+            details_json=details_json,
+            errors=errors,
+        )
+        delivered = send_webhook_notification(webhook_url, payload)
+        if webhook_url and not delivered:
+            logger.error("nightly_sync webhook notification failed")
         return payload
     except Exception as exc:
         errors.append(f"nightly: {exc}")
@@ -910,5 +914,15 @@ def run_nightly_sync(
             trigger,
             exc_info=True,
         )
-        _notify_webhook(webhook_url, {"status": "failed", "records_processed": records_processed})
+        payload = build_webhook_payload(
+            event="SYNC_COMPLETE_FAILURE",
+            status="failed",
+            trigger=trigger,
+            records_processed=records_processed,
+            details_json=failure_details,
+            errors=errors,
+        )
+        delivered = send_webhook_notification(webhook_url, payload)
+        if webhook_url and not delivered:
+            logger.error("nightly_sync webhook notification failed")
         raise

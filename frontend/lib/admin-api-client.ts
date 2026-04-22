@@ -8,6 +8,8 @@ import type {
   LoginRequest,
   LoginResponse,
   MeResponse,
+  WebhookTestRequest,
+  WebhookTestResponse,
 } from "@/types/admin";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
@@ -64,6 +66,12 @@ export const adminApiClient = {
   triggerSync: () =>
     adminRequest<{ detail: string }>("/admin/sync/trigger", {
       method: "POST",
+    }),
+
+  testWebhook: (body: WebhookTestRequest) =>
+    adminRequest<WebhookTestResponse>("/admin/config/webhook/test", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 
   getDataHealth: (params?: {
