@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { adminApiClient } from "./admin-api-client";
 import { apiClient } from "./api-client";
 import { queryKeys } from "./query-keys";
 import { useUIStore } from "./store";
@@ -143,5 +144,50 @@ export function useMttrAlphaReleases(page: number, size = 20) {
   return useQuery({
     queryKey: queryKeys.mttrAlphaReleases(period, page, size),
     queryFn: () => apiClient.getMttrAlphaReleases({ period, page, size }),
+  });
+}
+
+export function useAdminDataHealth(
+  unmatchedPage: number,
+  unmatchedSize = 20,
+  mismatchPage = 0,
+  mismatchSize = 20,
+) {
+  return useQuery({
+    queryKey: queryKeys.adminDataHealth(
+      unmatchedPage,
+      unmatchedSize,
+      mismatchPage,
+      mismatchSize,
+    ),
+    queryFn: () =>
+      adminApiClient.getDataHealth({
+        unmatched_page: unmatchedPage,
+        unmatched_size: unmatchedSize,
+        mismatch_page: mismatchPage,
+        mismatch_size: mismatchSize,
+      }),
+  });
+}
+
+export function useAdminRawTableRows(
+  table: "sync_log" | "repository" | "release" | "production_bug" | "merge_request" | "issue_worklog",
+  page: number,
+  size = 20,
+  search = "",
+  sortBy: string | null = null,
+  sortDir: "asc" | "desc" = "desc",
+) {
+  return useQuery({
+    queryKey: queryKeys.adminRawTableRows(table, page, size, search, sortBy, sortDir),
+    queryFn: () =>
+      adminApiClient.getRawTableRows({
+        table,
+        page,
+        size,
+        search: search || undefined,
+        sort_by: sortBy ?? undefined,
+        sort_dir: sortDir,
+      }),
   });
 }

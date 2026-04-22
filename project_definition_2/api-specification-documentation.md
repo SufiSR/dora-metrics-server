@@ -12,15 +12,17 @@ FastAPI automatically generates interactive docs at `/docs` (Swagger UI) and `/r
 
 ## Data freshness (daily pipeline)
 
-All metric endpoints return values computed from **`metric_snapshot`** (and raw tables) that were last written by **`run_nightly_sync`**. The application **guarantees a full refresh path once per day** by default (scheduled **02:00**, configurable — see `backend-components-documentation.md`).
+All metric endpoints return values computed from `**metric_snapshot**` (and raw tables) that were last written by `**run_nightly_sync**`. The application **guarantees a full refresh path once per day** by default (scheduled **02:00**, configurable — see `backend-components-documentation.md`).
 
-| Field / concept | Meaning |
-| --- | --- |
-| `generated_at` (on metric responses) | UTC timestamp when the snapshot row backing this response was produced (end of snapshot step). |
-| `GET /sync/status` | Last run **start** / **finish**, per-collector status, snapshot count, **next scheduled** run. |
-| Stale data | If the sync job failed all night, `generated_at` is unchanged; the UI should surface **`SYNC_COMPLETE_FAILURE`** from sync status. |
 
-Phase 1 may map **`mttr`** in the public API to **MTTR Alpha** (minutes) for the primary card, or expose both **lifecycle MTTR** and **MTTR Alpha** as separate optional `MetricValue` fields — see `CurrentMetricsResponse` below.
+| Field / concept                      | Meaning                                                                                                                            |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `generated_at` (on metric responses) | UTC timestamp when the snapshot row backing this response was produced (end of snapshot step).                                     |
+| `GET /sync/status`                   | Last run **start** / **finish**, per-collector status, snapshot count, **next scheduled** run.                                     |
+| Stale data                           | If the sync job failed all night, `generated_at` is unchanged; the UI should surface `**SYNC_COMPLETE_FAILURE`** from sync status. |
+
+
+Phase 1 may map `**mttr**` in the public API to **MTTR Alpha** (minutes) for the primary card, or expose both **lifecycle MTTR** and **MTTR Alpha** as separate optional `MetricValue` fields — see `CurrentMetricsResponse` below.
 
 ---
 
@@ -28,24 +30,28 @@ Phase 1 may map **`mttr`** in the public API to **MTTR Alpha** (minutes) for the
 
 ### Public (no authentication)
 
-| Method | Path | Description | Paginated |
-| --- | --- | --- | --- |
-| GET | `/metrics/current` | Current aggregated metrics + DORA levels | No |
-| GET | `/metrics/history` | Historical time series + DORA levels | Yes |
-| GET | `/metrics/repository/{id}` | Repository-specific current metrics | No |
-| GET | `/repositories` | List of monitored repositories | No |
-| GET | `/sync/status` | Status of last synchronization | No |
-| GET | `/health` | Health check | No |
+
+| Method | Path                       | Description                              | Paginated |
+| ------ | -------------------------- | ---------------------------------------- | --------- |
+| GET    | `/metrics/current`         | Current aggregated metrics + DORA levels | No        |
+| GET    | `/metrics/history`         | Historical time series + DORA levels     | Yes       |
+| GET    | `/metrics/repository/{id}` | Repository-specific current metrics      | No        |
+| GET    | `/repositories`            | List of monitored repositories           | No        |
+| GET    | `/sync/status`             | Status of last synchronization           | No        |
+| GET    | `/health`                  | Health check                             | No        |
+
 
 ### Admin (authentication required)
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/auth/login` | Admin login; sets session cookie or returns JWT |
-| POST | `/auth/logout` | Invalidate session / clear cookie |
-| GET | `/auth/me` | Current principal (`role`: `viewer` is unauthenticated default when not used; `admin` when session valid) |
-| GET | `/admin/config` | Full effective config for forms; **secrets masked** |
-| PATCH | `/admin/config` | Partial update of GitLab/Jira/scheduler settings; new tokens replace stored secrets |
+
+| Method | Path            | Description                                                                                               |
+| ------ | --------------- | --------------------------------------------------------------------------------------------------------- |
+| POST   | `/auth/login`   | Admin login; sets session cookie or returns JWT                                                           |
+| POST   | `/auth/logout`  | Invalidate session / clear cookie                                                                         |
+| GET    | `/auth/me`      | Current principal (`role`: `viewer` is unauthenticated default when not used; `admin` when session valid) |
+| GET    | `/admin/config` | Full effective config for forms; **secrets masked**                                                       |
+| PATCH  | `/admin/config` | Partial update of GitLab/Jira/scheduler settings; new tokens replace stored secrets                       |
+
 
 **Rules:** `GET/PATCH /admin/config` and `POST /auth/logout` require a valid **Admin** session. Unauthenticated requests receive **401 Unauthorized**. Viewers never call these routes from the main dashboard.
 
@@ -282,14 +288,16 @@ Returns historical time series of metrics.
 
 **Query Parameters**
 
-| Parameter | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `period_type` | string | No | `WEEK` | `WEEK`, `MONTH`, or `QUARTER` |
-| `from` | date | No | 12 weeks ago | Start date (ISO 8601) |
-| `to` | date | No | today | End date (ISO 8601) |
-| `repository_id` | integer | No | null | Filter by repository |
-| `page` | integer | No | 0 | Zero-based page number |
-| `size` | integer | No | 20 | Page size (max 100) |
+
+| Parameter       | Type    | Required | Default      | Description                   |
+| --------------- | ------- | -------- | ------------ | ----------------------------- |
+| `period_type`   | string  | No       | `WEEK`       | `WEEK`, `MONTH`, or `QUARTER` |
+| `from`          | date    | No       | 12 weeks ago | Start date (ISO 8601)         |
+| `to`            | date    | No       | today        | End date (ISO 8601)           |
+| `repository_id` | integer | No       | null         | Filter by repository          |
+| `page`          | integer | No       | 0            | Zero-based page number        |
+| `size`          | integer | No       | 20           | Page size (max 100)           |
+
 
 **Request Example**
 
@@ -307,9 +315,11 @@ Returns current metrics for a specific repository.
 
 **Path Parameters**
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `id` | integer | Internal repository ID |
+
+| Parameter | Type    | Description            |
+| --------- | ------- | ---------------------- |
+| `id`      | integer | Internal repository ID |
+
 
 **Response 200** – `CurrentMetricsResponse` (scoped to one repository)
 
@@ -327,9 +337,11 @@ Returns all monitored repositories.
 
 **Query Parameters**
 
-| Parameter | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `active` | boolean | No | `true` | Filter by active status |
+
+| Parameter | Type    | Required | Default | Description             |
+| --------- | ------- | -------- | ------- | ----------------------- |
+| `active`  | boolean | No       | `true`  | Filter by active status |
+
 
 **Response 200** – `RepositoriesResponse`
 
@@ -372,11 +384,13 @@ Returns status of the most recent synchronization run **and** the next scheduled
 }
 ```
 
-| Field | Description |
-| --- | --- |
+
+| Field                     | Description                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `last_successful_sync_at` | Convenience copy of `last_sync.finished_at` when `status` is success or partial with usable snapshots |
-| `snapshot_generated_at` | When `metric_snapshot` writes for this run completed |
-| `sync_schedule_cron` | Human/debug hint; authoritative schedule is server config |
+| `snapshot_generated_at`   | When `metric_snapshot` writes for this run completed                                                  |
+| `sync_schedule_cron`      | Human/debug hint; authoritative schedule is server config                                             |
+
 
 ---
 
@@ -412,13 +426,15 @@ class ErrorResponse(BaseModel):
     timestamp: datetime
 ```
 
-| Status Code | `error` value | When |
-| --- | --- | --- |
-| 400 | `BAD_REQUEST` | Invalid query parameters |
-| 401 | `UNAUTHORIZED` | Missing or invalid session (admin routes) |
-| 403 | `FORBIDDEN` | Authenticated but not Admin (if multiple roles exist later) |
-| 404 | `NOT_FOUND` | Resource does not exist |
-| 500 | `INTERNAL_ERROR` | Unexpected server error |
+
+| Status Code | `error` value    | When                                                        |
+| ----------- | ---------------- | ----------------------------------------------------------- |
+| 400         | `BAD_REQUEST`    | Invalid query parameters                                    |
+| 401         | `UNAUTHORIZED`   | Missing or invalid session (admin routes)                   |
+| 403         | `FORBIDDEN`      | Authenticated but not Admin (if multiple roles exist later) |
+| 404         | `NOT_FOUND`      | Resource does not exist                                     |
+| 500         | `INTERNAL_ERROR` | Unexpected server error                                     |
+
 
 FastAPI exception handlers are registered in `main.py` to convert `ValueError`, `RequestValidationError`, and unhandled exceptions to this format.
 
@@ -426,7 +442,7 @@ FastAPI exception handlers are registered in `main.py` to convert `ValueError`, 
 
 ## CORS Configuration
 
-Since the Next.js frontend may be served from a different origin (or embedded in Confluence), CORS is configured explicitly. **Public** routes allow anonymous `GET`. **Admin** login and config use **`POST`/`PATCH`** and may send **cookies** or **`Authorization`** headers.
+Since the Next.js frontend may be served from a different origin (or embedded in Confluence), CORS is configured explicitly. **Public** routes allow anonymous `GET`. **Admin** login and config use `**POST`/`PATCH`** and may send **cookies** or `**Authorization`** headers.
 
 ```python
 from fastapi.middleware.cors import CORSMiddleware
@@ -447,11 +463,13 @@ app.add_middleware(
 
 ## DORA Performance Level Classification
 
-| Level | Deployment Frequency | Lead Time | Change Failure Rate | MTTR |
-| --- | --- | --- | --- | --- |
-| ELITE | Multiple per day | < 1 hour | < 5% | < 1 hour |
-| HIGH | Daily to weekly | 1 day – 1 week | 5% – 10% | < 1 day |
-| MEDIUM | Weekly to monthly | 1 week – 1 month | 10% – 15% | 1 day – 1 week |
-| LOW | Monthly or slower | > 1 month | > 15% | > 1 week |
+
+| Level  | Deployment Frequency | Lead Time        | Change Failure Rate | MTTR           |
+| ------ | -------------------- | ---------------- | ------------------- | -------------- |
+| ELITE  | Multiple per day     | < 1 hour         | < 5%                | < 1 hour       |
+| HIGH   | Daily to weekly      | 1 day – 1 week   | 5% – 10%            | < 1 day        |
+| MEDIUM | Weekly to monthly    | 1 week – 1 month | 10% – 15%           | 1 day – 1 week |
+| LOW    | Monthly or slower    | > 1 month        | > 15%               | > 1 week       |
+
 
 Overall level = lowest individual level across all four metrics.

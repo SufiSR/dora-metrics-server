@@ -3,7 +3,15 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from app.api import admin_config, auth, metrics_public, repositories_public, sync_public
+from app.api import (
+    admin_config,
+    admin_data_health,
+    admin_raw_tables,
+    auth,
+    metrics_public,
+    repositories_public,
+    sync_public,
+)
 from app.api.deps import SessionDep
 from app.schemas.health import ComponentHealth, HealthResponse
 from app.services.health_service import build_health_response
@@ -11,6 +19,8 @@ from app.services.health_service import build_health_response
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(admin_config.router, prefix="/admin", tags=["admin"])
+api_router.include_router(admin_data_health.router, prefix="/admin", tags=["admin"])
+api_router.include_router(admin_raw_tables.router, prefix="/admin", tags=["admin"])
 api_router.include_router(metrics_public.router, prefix="/metrics", tags=["metrics"])
 api_router.include_router(repositories_public.router, prefix="/repositories", tags=["repositories"])
 api_router.include_router(sync_public.router, prefix="/sync", tags=["sync"])

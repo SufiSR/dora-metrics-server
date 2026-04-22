@@ -7,6 +7,8 @@ import { ThemeToggle } from "@/app/components/ui/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/admin/config", icon: "settings", label: "Configuration" },
+  { href: "/admin/data-health", icon: "monitor_heart", label: "Data Health" },
+  { href: "/admin/raw-tables", icon: "table_view", label: "Raw Data" },
 ];
 
 export function AdminSidebar() {

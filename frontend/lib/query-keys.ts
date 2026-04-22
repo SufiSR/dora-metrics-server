@@ -1,4 +1,5 @@
 import type { PeriodType } from "@/types/api";
+import type { AdminRawTableSortDirection } from "@/types/admin";
 
 export const queryKeys = {
   metricsCurrent: (period: PeriodType) =>
@@ -54,4 +55,30 @@ export const queryKeys = {
 
   mttrAlphaReleases: (period: PeriodType, page: number, size: number) =>
     ["metrics", "bugs", "mttr-alpha", "releases", period, page, size] as const,
+
+  adminDataHealth: (
+    unmatchedPage: number,
+    unmatchedSize: number,
+    mismatchPage: number,
+    mismatchSize: number,
+  ) =>
+    [
+      "admin",
+      "data-health",
+      "unmatched",
+      unmatchedPage,
+      unmatchedSize,
+      "mismatch",
+      mismatchPage,
+      mismatchSize,
+    ] as const,
+
+  adminRawTableRows: (
+    table: string,
+    page: number,
+    size: number,
+    search: string,
+    sortBy: string | null,
+    sortDir: AdminRawTableSortDirection,
+  ) => ["admin", "raw-tables", table, page, size, search, sortBy ?? "default", sortDir] as const,
 } as const;
