@@ -83,7 +83,7 @@ External calls use **httpx** (sync or async) with **Tenacity** retries on transi
 
 | Function                            | Description                                                                                                                                                                                        |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sync_production_bugs()`            | JQL pull; upsert `ProductionBug` including `**priority`**, versions, health, indicators. JQL requires `**created >= 2024-01-01**` (hard floor) and `**updated**` in the configured lookback window |
+| `sync_production_bugs()`            | JQL pull; upsert `ProductionBug` including `**priority`**, versions, health, indicators. JQL requires `**created >= 2024-01-01`** (hard floor) and `**updated**` in the configured lookback window |
 | `sync_issue_worklogs()`             | Per issue: worklog API; upsert `issue_worklog`; refresh `**total_worklog_seconds**` on `production_bug`                                                                                            |
 | `sync_ready_for_qa_timestamp()`     | Changelog API; first transition to a status in `**ready_for_qa_status_names**` → `**ready_for_qa_at**`                                                                                             |
 | `map_bugs_to_releases()`            | Populate `bug_release` / CFR links from `affects_version` ↔ `Release`                                                                                                                              |

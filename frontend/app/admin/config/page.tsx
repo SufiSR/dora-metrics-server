@@ -218,7 +218,7 @@ export default function AdminConfigPage() {
   if (!config) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="space-y-3 w-full max-w-xl px-12">
+        <div className="space-y-3 w-full max-w-xl mx-auto">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
@@ -233,7 +233,7 @@ export default function AdminConfigPage() {
   const unsavedCount = countDraftFields(patch);
 
   return (
-    <div className="px-12 py-10 max-w-5xl w-full mx-auto pb-32">
+    <div className="w-full pb-32">
       {/* Editorial header */}
       <header className="mb-16">
         <p className="text-[10px] font-editorial font-bold uppercase tracking-[0.1em] text-primary mb-2">

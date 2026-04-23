@@ -493,3 +493,37 @@ def test_sync_issue_worklogs_removes_entries_not_in_payload() -> None:
     assert ids == {"keep"}
     assert wl_keep.author == "new"
     assert wl_keep.time_spent_seconds == 99
+
+
+def test_jira_parse_dt_offset_fix_and_invalid() -> None:
+    s = "2026-01-15T10:00:00+0000"  # no colon in offset, triggers normalization branch
+    p = _parse_dt(s)
+    assert p is not None
+    assert _parse_dt("not a date at all") is None
+
+
+def test_jira_to_string_list_and_extract_named() -> None:
+    assert _to_string_list("x") == []
+    assert _to_string_list([None, "  a  ", 3]) == ["a", "3"]
+    assert _extract_named_values("bad") == []
+    assert _extract_named_values([{"x": 1}, {"name": " v "}, {"name": ""}]) == ["v"]
+
+
+def test_jira_parse_dt_naive() -> None:
+    p = _parse_dt("2026-06-01T12:00:00")
+    assert p is not None
+    assert p.tzinfo is not None
+
+
+def test_jira_is_retryable_429() -> None:
+    req = httpx.Request("GET", "https://jira.example/rest")
+    resp = httpx.Response(429, request=req)
+    err = httpx.HTTPStatusError("m", request=req, response=resp)
+    assert _is_retryable_http_exception(err) is True
+
+
+def test_jira_is_retryable_http_400() -> None:
+    req = httpx.Request("GET", "https://jira.example/rest")
+    resp = httpx.Response(400, request=req)
+    err = httpx.HTTPStatusError("m", request=req, response=resp)
+    assert _is_retryable_http_exception(err) is False

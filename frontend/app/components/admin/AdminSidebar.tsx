@@ -29,10 +29,10 @@ export function AdminSidebar() {
       {/* Brand */}
       <div className="px-6 py-6 mb-2">
         <div className="text-primary font-editorial font-bold text-xl tracking-tighter select-none">
-          Admin Console
+          DORA Metrics
         </div>
-        <div className="text-on-surface-variant font-editorial text-[10px] uppercase tracking-widest mt-1">
-          Editorial Engineering
+        <div className="text-on-surface font-editorial text-sm font-medium mt-1">
+          Admin Console
         </div>
       </div>
 

@@ -22,7 +22,7 @@ All metric endpoints return values computed from `**metric_snapshot**` (and raw 
 | Stale data                           | If the sync job failed all night, `generated_at` is unchanged; the UI should surface `**SYNC_COMPLETE_FAILURE`** from sync status. |
 
 
-Phase 1 may map `**mttr**` in the public API to **MTTR Alpha** (minutes) for the primary card, or expose both **lifecycle MTTR** and **MTTR Alpha** as separate optional `MetricValue` fields — see `CurrentMetricsResponse` below.
+Phase 1 may map `**mttr`** in the public API to **MTTR Alpha** (minutes) for the primary card, or expose both **lifecycle MTTR** and **MTTR Alpha** as separate optional `MetricValue` fields — see `CurrentMetricsResponse` below.
 
 ---
 

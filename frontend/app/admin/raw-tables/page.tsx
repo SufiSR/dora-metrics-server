@@ -90,7 +90,7 @@ export default function AdminRawTablesPage() {
 
   if (query.isLoading) {
     return (
-      <div className="px-12 py-10 max-w-7xl w-full mx-auto space-y-8">
+      <div className="w-full space-y-8">
         <div className="h-16 bg-surface-container rounded-2xl animate-pulse" />
         <div className="h-72 bg-surface-container rounded-2xl animate-pulse" />
       </div>
@@ -111,7 +111,7 @@ export default function AdminRawTablesPage() {
   }
 
   return (
-    <div className="px-12 py-10 max-w-7xl w-full mx-auto pb-24 space-y-6">
+    <div className="w-full pb-24 space-y-6">
       <header className="space-y-3">
         <p className="text-[10px] font-editorial font-bold uppercase tracking-[0.1em] text-primary">
           Operations

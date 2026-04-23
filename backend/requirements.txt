@@ -17,6 +17,7 @@ cryptography
 pytest
 pytest-cov
 pytest-asyncio
+respx
 testcontainers[postgresql]
 ruff
 mypy

@@ -11,13 +11,17 @@ from app.models.base import Base
 from app.models.merge_request import MergeRequest
 from app.models.release import Release
 from app.models.repository import Repository
+import httpx
+
 from app.services.gitlab_release_collector import (
     GitLabTagsClient,
     _deduplicate_merge_requests,
     _effective_commit_sha,
     _extract_jira_key,
+    _first_jira_key_in_text,
     _hours_between,
     _is_customer_release,
+    _is_retryable_http_exception,
     _lookback_from,
     _map_merge_requests_to_customer_releases,
     _markers_regex,
@@ -26,6 +30,8 @@ from app.services.gitlab_release_collector import (
     _parse_merge_request,
     _reconcile_repository_releases,
     _sync_first_commit_timestamps,
+    _apply_cooldown,
+    _upsert_merge_request,
     parse_tag_version,
 )
 
@@ -541,3 +547,142 @@ def test_reconcile_repository_releases_removes_tags_missing_upstream() -> None:
 
     assert removed == 1
     assert remaining_tags == {"v10.2.0"}
+
+
+def test_parse_dt_invalid_and_naive() -> None:
+    assert _parse_dt("totally-not-iso") is None
+    naive = _parse_dt("2026-01-01T00:00:00")
+    assert naive is not None and naive.tzinfo is not None
+
+
+def test_is_retryable_http_exception() -> None:
+    assert _is_retryable_http_exception(httpx.ConnectError("x")) is True
+    req = httpx.Request("GET", "https://example.test/x")
+    resp_500 = httpx.Response(500, request=req)
+    err_500 = httpx.HTTPStatusError("m", request=req, response=resp_500)
+    assert _is_retryable_http_exception(err_500) is True
+    resp_400 = httpx.Response(400, request=req)
+    err_400 = httpx.HTTPStatusError("m", request=req, response=resp_400)
+    assert _is_retryable_http_exception(err_400) is False
+
+
+def test_first_jira_key_in_text_empty() -> None:
+    assert _first_jira_key_in_text("") is None
+    assert _first_jira_key_in_text("   ") is None
+
+
+def test_markers_regex_empty_uses_default() -> None:
+    m = _markers_regex([])
+    assert m.search("rel-rc.1") is not None
+    m2 = _markers_regex(["zeta"])
+    assert m2.search("rel-zeta.1") is not None
+
+
+def test_is_customer_release_whitespace() -> None:
+    re_rc = _markers_regex(["rc", "beta"])
+    assert _is_customer_release("  ", re_rc) is False
+    assert _is_customer_release(None, re_rc) is False
+
+
+def test_parse_merge_request_invalid() -> None:
+    base = {
+        "target_branch": "master",
+        "created_at": "2026-01-01T00:00:00Z",
+        "merged_at": "2026-01-01T00:00:00Z",
+    }
+    assert _parse_merge_request({**base, "iid": "not-int"}) is None
+    assert _parse_merge_request({**base, "iid": 1, "target_branch": "   "}) is None
+    assert _parse_merge_request({**base, "iid": 1, "created_at": "x", "merged_at": "2026-01-01T00:00:00Z"}) is None
+
+
+def _mr_payload(overrides: dict) -> dict:
+    base = {
+        "gitlab_mr_id": 99,
+        "title": "t",
+        "description": "d",
+        "author": "a",
+        "source_branch": "s",
+        "target_branch": "main",
+        "created_at": datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+        "merged_at": datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+        "head_sha": "a" * 40,
+        "merge_commit_sha": "b" * 40,
+        "squash_commit_sha": None,
+        "effective_commit_sha": "c" * 40,
+        "jira_key": "DEVOPS-1",
+        "jira_key_source": "title",
+    }
+    return {**base, **overrides}
+
+
+def test_upsert_merge_request_inserts_new_row() -> None:
+    with _session() as db:
+        db.add(
+            Repository(
+                id=1,
+                gitlab_id=1,
+                name="repo",
+                path="operations/dora-metrics",
+                default_branch="main",
+                active=True,
+            )
+        )
+        db.commit()
+        _upsert_merge_request(db, 1, _mr_payload({}))
+        db.commit()
+        row = db.get(MergeRequest, 1)
+    assert row is not None
+    assert row.jira_key == "DEVOPS-1"
+
+
+def test_upsert_merge_request_updates_clears_jira_ready_on_key_change() -> None:
+    qa_at = datetime(2026, 1, 5, 12, 0, tzinfo=timezone.utc)
+    with _session() as db:
+        db.add(
+            Repository(
+                id=1,
+                gitlab_id=1,
+                name="repo",
+                path="p",
+                default_branch="main",
+                active=True,
+            )
+        )
+        db.flush()
+        db.add(
+            MergeRequest(
+                id=1,
+                repository_id=1,
+                gitlab_mr_id=5,
+                target_branch="main",
+                created_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+                merged_at=datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+                jira_key="DEVOPS-1",
+                jira_key_source="title",
+                jira_ready_for_qa_at=qa_at,
+            )
+        )
+        db.commit()
+        _upsert_merge_request(
+            db,
+            1,
+            _mr_payload({"gitlab_mr_id": 5, "jira_key": "DEVOPS-2"}),
+        )
+        db.commit()
+        row = db.get(MergeRequest, 1)
+    assert row is not None
+    assert row.jira_key == "DEVOPS-2"
+    assert row.jira_ready_for_qa_at is None
+
+
+def test_apply_cooldown_sleeps_when_positive(monkeypatch: pytest.MonkeyPatch) -> None:
+    last: list[float] = []
+
+    def _fake_sleep(s: float) -> None:
+        last.append(s)
+
+    monkeypatch.setattr("app.services.gitlab_release_collector.sleep", _fake_sleep)
+    _apply_cooldown(0.0)
+    assert last == []
+    _apply_cooldown(1.5)
+    assert last == [1.5]

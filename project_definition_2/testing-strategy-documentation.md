@@ -73,35 +73,18 @@ Location: `backend/tests/unit/`
 
 ### Integration Tests
 
-Location: `backend/tests/integration/`
+Location: `backend/tests/integration/` (see `README.md` in that folder for the current plan and how to run). Requires **Docker**; run from `backend/`: `pytest tests/integration/ -m integration`.
 
-Uses `testcontainers-python` to start a real PostgreSQL 16 container. Alembic migrations are applied before each test session.
+Uses **testcontainers** (PostgreSQL 16). **Alembic** `upgrade head` runs once per session. External GitLab/Jira are not configured; tests use `TestClient` against the real app + DB.
 
-| Component | What Is Tested | Mocking |
+| Component | What Is Tested (current) | Notes |
 | --- | --- | --- |
-| `GitLabCollector` | API pagination, tag/MR/commit mapping | `respx` (mock GitLab HTTP) |
-| `JiraCollector` | Bug fetching, Affects Versions mapping | `respx` (mock Jira HTTP) |
-| ORM / repository layer | JPA queries, FK constraints, upsert behaviour | Real PostgreSQL |
-| FastAPI endpoints | Request/response contracts, pagination, 404 | `httpx.AsyncClient` via `pytest` |
-| WebhookNotifier | HTTP POST is sent with correct payload | `respx` |
+| Migrations / schema | `alembic_version` row, presence of core tables | Fails if migrations are broken or incomplete |
+| Auth & admin | Login, session, `/api/admin/config` GET/PATCH, 401 without session | — |
+| Public API (smoke) | `/api/metrics/current`, `history`, MTTR Alpha summary, `/api/repositories`, `/api/sync/status`, `GET /health` | Empty DB; contract smoke |
+| Protected admin (smoke) | e.g. `/api/admin/data-health` returns 401 when anonymous | — |
 
-**Example test cases – `GitLabCollector`:**
-
-| Test | Description |
-| --- | --- |
-| `test_sync_tags_maps_correctly` | Tags correctly map to `Release` entities |
-| `test_sync_tags_handles_rate_limit` | Retries on HTTP 429 |
-| `test_sync_tags_handles_pagination` | All pages of results are fetched |
-
-**Example test cases – FastAPI endpoints:**
-
-| Test | Description |
-| --- | --- |
-| `test_get_current_metrics_returns_all_four` | Response contains all 4 metrics |
-| `test_get_current_metrics_includes_level` | `overall_performance_level` is present |
-| `test_get_history_pagination` | Pagination fields are correct |
-| `test_get_history_invalid_period_type` | Returns 422 Unprocessable Entity |
-| `test_get_repository_metrics_not_found` | Returns 404 for unknown ID |
+**Additional coverage (evolving):** service collectors on PostgreSQL with real `GitLabTagsClient` / `JiraBugsClient` and **`respx` mocks** of the same `httpx` URLs; admin webhook test uses `respx` too. Remaining: **live** GitLab/Jira environments, `factory_boy` seed data, E2E. Tracked on **DEVOPS-517** / **DEVOPS-446**.
 
 ### Test Fixtures
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -475,3 +476,47 @@ def test_build_current_metrics_response_clips_future_window_end_to_today() -> No
 
         cur = mps.build_current_metrics_response(db, repository_id=1, period_type="QUARTER")
         assert cur.period_end <= today
+
+
+def test_previous_window_quarter_sm4_sm7_sm10_and_bad_month() -> None:
+    w4 = mps._Window(period_start=date(2026, 4, 1), period_end=date(2026, 6, 30))
+    p4 = mps._previous_window(w4, "QUARTER")
+    assert p4.period_start == date(2026, 1, 1) and p4.period_end == date(2026, 3, 31)
+
+    w7 = mps._Window(period_start=date(2026, 7, 1), period_end=date(2026, 9, 30))
+    p7 = mps._previous_window(w7, "QUARTER")
+    assert p7.period_start == date(2026, 4, 1)
+
+    w10 = mps._Window(period_start=date(2026, 10, 1), period_end=date(2026, 12, 31))
+    p10 = mps._previous_window(w10, "QUARTER")
+    assert p10.period_start == date(2026, 7, 1)
+
+    bad = mps._Window(period_start=date(2026, 2, 1), period_end=date(2026, 2, 28))
+    with pytest.raises(ValueError, match="Unsupported quarter window"):
+        mps._previous_window(bad, "QUARTER")
+
+
+def test_merge_lead_time_match_counts_json_and_types() -> None:
+    class _R:
+        def __init__(self, raw: object) -> None:
+            self.lead_time_match_counts = raw
+
+    merged = mps._merge_lead_time_match_counts(
+        [
+            _R('{"a": 1, "skip_bool": true, "f": 4.0}'),
+            _R("not-json"),
+            _R({"b": 2, "c": 3.0}),
+        ]
+    )
+    assert merged.get("a") == 1
+    assert "skip_bool" not in merged
+    assert merged.get("f") == 4
+    assert merged.get("b") == 2
+    assert merged.get("c") == 3
+
+
+def test_load_snapshots_empty_windows() -> None:
+    with _session() as db:
+        assert mps._load_snapshots_for_windows(
+            db, period_type="WEEK", windows=[], repository_id=1
+        ) == []

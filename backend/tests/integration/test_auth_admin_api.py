@@ -3,51 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-
-def _docker_available() -> bool:
-    try:
-        import docker
-
-        docker.from_env().ping()
-        return True
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _docker_available(), reason="Docker is not available")
-
-
-def _psycopg_url(url: str) -> str:
-    if url.startswith("postgresql://") and "+psycopg2" not in url:
-        return url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    return url
-
-
-@pytest.fixture
-def api_client(migrated_database_url: str, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setenv("DATABASE_URL", _psycopg_url(migrated_database_url))
-    monkeypatch.setenv("DORA_SESSION_SECRET", "integration-test-session-secret-32c")
-    monkeypatch.setenv("DORA_ADMIN_USERNAME", "admin")
-    monkeypatch.setenv("DORA_ADMIN_PASSWORD", "adminpass")
-    monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", "devops-438-key")
-    for key in (
-        "GITLAB_BASE_URL",
-        "GITLAB_TOKEN",
-        "GITLAB_API_TOKEN",
-        "JIRA_BASE_URL",
-        "JIRA_API_TOKEN",
-        "JIRA_USER_EMAIL",
-    ):
-        monkeypatch.delenv(key, raising=False)
-
-    import app.database as db_mod
-
-    db_mod._engine = None
-
-    from app.main import app
-
-    with TestClient(app) as client:
-        yield client
+pytestmark = pytest.mark.integration
 
 
 def test_api_health_reports_database_up(api_client: TestClient) -> None:

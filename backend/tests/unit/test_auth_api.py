@@ -154,3 +154,17 @@ def test_webhook_test_endpoint_missing_url_returns_400(client: TestClient) -> No
     client.post("/api/auth/login", json={"username": "admin", "password": "secret"})
     response = client.post("/api/admin/config/webhook/test", json={})
     assert response.status_code == 400
+
+
+def test_login_request_validation_error_returns_bad_request_envelope(client: TestClient) -> None:
+    r = client.post("/api/auth/login", json={"username": "admin"})
+    assert r.status_code == 400
+    assert r.json().get("error") == "BAD_REQUEST"
+
+
+def test_login_rejects_when_env_password_unset(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DORA_ADMIN_PASSWORD", "")
+    r = client.post("/api/auth/login", json={"username": "admin", "password": "x"})
+    assert r.status_code == 401

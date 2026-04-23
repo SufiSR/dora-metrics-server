@@ -122,6 +122,45 @@ def test_metrics_history_default_horizon_depends_on_period_type(public_client: T
         assert (returned_to - from_date).days == days
 
 
+def test_metrics_history_rejects_inverted_from_to_range(public_client: TestClient) -> None:
+    r = public_client.get(
+        "/api/metrics/history",
+        params={"from": "2026-12-01", "to": "2026-01-01"},
+    )
+    assert r.status_code == 400
+
+
+def test_mttr_alpha_date_window_rejects_inverted_from_to(public_client: TestClient) -> None:
+    r = public_client.get(
+        "/api/metrics/bugs/mttr-alpha/summary",
+        params={"from": "2026-12-01", "to": "2026-01-01"},
+    )
+    assert r.status_code == 400
+
+
+def test_mttr_alpha_releases_list_smoke(public_client: TestClient) -> None:
+    r = public_client.get("/api/metrics/bugs/mttr-alpha/releases")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["period_type"] == "WEEK"
+    assert body["items"] == []
+    assert body["pagination"]["total_elements"] == 0
+
+
+def test_api_health_returns_503_when_build_raises(
+    public_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.api.router as api_router
+
+    def _boom(_db: object) -> None:
+        raise RuntimeError("simulated health failure")
+
+    monkeypatch.setattr(api_router, "build_health_response", _boom)
+    r = public_client.get("/api/health")
+    assert r.status_code == 503
+    assert r.json()["status"] == "DOWN"
+
+
 def test_sync_status_shape(public_client: TestClient) -> None:
     response = public_client.get("/api/sync/status")
     assert response.status_code == 200

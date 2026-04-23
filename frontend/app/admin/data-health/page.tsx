@@ -111,7 +111,7 @@ export default function AdminDataHealthPage() {
 
   if (query.isLoading) {
     return (
-      <div className="px-12 py-10 max-w-6xl w-full mx-auto space-y-8">
+      <div className="w-full space-y-8">
         <div className="h-20 bg-surface-container rounded-2xl animate-pulse" />
         <div className="h-56 bg-surface-container rounded-2xl animate-pulse" />
         <div className="h-56 bg-surface-container rounded-2xl animate-pulse" />
@@ -135,7 +135,7 @@ export default function AdminDataHealthPage() {
   const data = query.data;
 
   return (
-    <div className="px-12 py-10 max-w-6xl w-full mx-auto pb-24 space-y-10">
+    <div className="w-full pb-24 space-y-10">
       <header className="space-y-3">
         <p className="text-[10px] font-editorial font-bold uppercase tracking-[0.1em] text-primary">
           Operations

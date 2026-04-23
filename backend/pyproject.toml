@@ -15,3 +15,8 @@ check_untyped_defs = true
 no_implicit_optional = true
 strict_equality = true
 exclude = ["tests/"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: Docker + testcontainers PostgreSQL; run from backend/ (alembic.ini path)",
+]

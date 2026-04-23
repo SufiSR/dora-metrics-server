@@ -3,18 +3,18 @@ import { MetricGrid } from "./components/dashboard/MetricGrid";
 import { TrendOverviewSection } from "./components/dashboard/TrendOverviewSection";
 import { StaleBanner } from "./components/dashboard/StaleBanner";
 import { MetricModal } from "./components/dashboard/MetricModal";
-import { LeadPostProductionTable } from "./components/dashboard/LeadPostProductionTable";
+import { SiteFooter } from "./components/SiteFooter";
 
 export default function HomePage() {
   return (
-    <div className="bg-background text-on-background min-h-screen">
+    <div className="bg-background text-on-background min-h-screen flex flex-col">
       <HeaderBar />
-      <main className="max-w-[1440px] mx-auto px-6 py-8 md:px-8 space-y-10">
+      <main className="max-w-[1440px] mx-auto px-6 py-8 md:px-8 space-y-10 flex-1 w-full">
         <StaleBanner />
         <MetricGrid />
         <TrendOverviewSection />
-        <LeadPostProductionTable />
       </main>
+      <SiteFooter />
       <MetricModal />
     </div>
   );
