@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MARKERS = ["rc", "beta"]
 _DEFAULT_TARGET_BRANCHES = ["master", "9.x", "10.x", "11.x"]
 _JIRA_KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]+-\d+)\b")
+# Prefer explicit ticket in brackets (common in GitLab) when multiple keys appear in the same field.
+_JIRA_KEY_IN_BRACKETS = re.compile(r"\[([A-Z][A-Z0-9]+-\d+)\]")
 _VERSION_RE = re.compile(
     r"^[vV]?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$"
 )
@@ -124,6 +126,17 @@ def _merged_gitlab_settings(
     return project_paths, target_branches, markers
 
 
+def _first_jira_key_in_text(text: str) -> str | None:
+    """Return one Jira key for this field, preferring an explicit [KEY-123] over the first bare match."""
+    if not text or not str(text).strip():
+        return None
+    bracket = _JIRA_KEY_IN_BRACKETS.search(text)
+    if bracket:
+        return str(bracket.group(1))
+    match = _JIRA_KEY_RE.search(text)
+    return str(match.group(1)) if match else None
+
+
 def _extract_jira_key(
     title: str | None,
     source_branch: str | None,
@@ -135,9 +148,9 @@ def _extract_jira_key(
         (description, "description"),
     ):
         if text:
-            match = _JIRA_KEY_RE.search(text)
-            if match:
-                return match.group(1), source
+            key = _first_jira_key_in_text(text)
+            if key:
+                return key, source
     return None, None
 
 

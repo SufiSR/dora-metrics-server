@@ -473,6 +473,7 @@ export function TrendChart() {
                   fill="url(#areaGradient)"
                   dot={{ r: 2.5, fill: colors.primary, stroke: colors.primary, strokeWidth: 0 }}
                   activeDot={{ r: 5, fill: colors.primary, strokeWidth: 0 }}
+                  connectNulls
                 />
               )}
             </AreaChart>

@@ -111,6 +111,16 @@ def test_extract_jira_key_prefers_title_over_branch_description() -> None:
     assert jira_key_source == "title"
 
 
+def test_extract_jira_key_prefers_bracketed_key_in_title_when_multiple_present() -> None:
+    jira_key, jira_key_source = _extract_jira_key(
+        title="Fix [DEVOPS-200] see also DEVOPS-100",
+        source_branch=None,
+        description=None,
+    )
+    assert jira_key == "DEVOPS-200"
+    assert jira_key_source == "title"
+
+
 def test_extract_jira_key_falls_back_to_branch_then_description() -> None:
     jira_key, jira_key_source = _extract_jira_key(
         title="no issue key here",

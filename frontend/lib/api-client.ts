@@ -97,9 +97,27 @@ function mapMetric(raw: any, kind: "deploy" | "lead" | "cfr" | "mttr", periodTyp
   };
 }
 
+/** When there are no customer deployments in the window, CFR is undefined — not 0%. */
+function applyCfrNoDataWhenNoDeploys(res: MetricsCurrentResponse): MetricsCurrentResponse {
+  const dep = res.deployment_frequency?.value;
+  const cfr = res.change_failure_rate?.value;
+  if (dep === 0 && cfr === 0) {
+    return {
+      ...res,
+      change_failure_rate: {
+        ...res.change_failure_rate,
+        value: null,
+        dora_level: "UNKNOWN",
+        trend_pct: null,
+      },
+    };
+  }
+  return res;
+}
+
 function normalizeMetricsCurrent(raw: any, period: PeriodType): MetricsCurrentResponse {
   if (raw && "lead_time_for_changes" in raw) {
-    return raw as MetricsCurrentResponse;
+    return applyCfrNoDataWhenNoDeploys(raw as MetricsCurrentResponse);
   }
   const leadMetric = mapMetric(raw?.release_wait_time ?? raw?.lead_time ?? raw?.mean_lead_time, "lead");
   const totalLeadHours =
@@ -113,7 +131,7 @@ function normalizeMetricsCurrent(raw: any, period: PeriodType): MetricsCurrentRe
       devReviewHours !== null ? `${devReviewHours.toFixed(1)}h` : "—"
     }`;
   }
-  return {
+  return applyCfrNoDataWhenNoDeploys({
     generated_at: raw?.generated_at ?? null,
     period_label: raw?.period_end ?? "",
     deployment_frequency: mapMetric(raw?.deployment_frequency, "deploy", period),
@@ -123,7 +141,7 @@ function normalizeMetricsCurrent(raw: any, period: PeriodType): MetricsCurrentRe
     lead_time_diagnostics: raw?.lead_time_diagnostics ?? null,
     lead_time_by_branch: raw?.lead_time_by_branch ?? null,
     lead_time_by_stream: raw?.lead_time_by_stream ?? null,
-  };
+  });
 }
 
 function _historyDateKey(iso: string): number {
@@ -177,14 +195,18 @@ function normalizeMetricsHistory(raw: any, period: PeriodType): MetricsHistoryRe
   if (raw && "data_points" in raw) {
     const typed = raw as MetricsHistoryResponse;
     const mapped = typed.data_points.map((p) => {
-      const totalH = p.lead_time_for_changes;
-      const devH = p.lead_time_dev_review_hours ?? null;
-      const waitH = p.lead_time_release_wait_hours ?? null;
-      if (totalH == null || devH == null || waitH == null) return p;
+      const base =
+        p.deployment_frequency === 0 && p.change_failure_rate === 0
+          ? { ...p, change_failure_rate: null }
+          : p;
+      const totalH = base.lead_time_for_changes;
+      const devH = base.lead_time_dev_review_hours ?? null;
+      const waitH = base.lead_time_release_wait_hours ?? null;
+      if (totalH == null || devH == null || waitH == null) return base;
       const s = devH + waitH;
-      if (s <= 0) return p;
+      if (s <= 0) return base;
       return {
-        ...p,
+        ...base,
         lead_time_dev_review_hours: totalH * (devH / s),
         lead_time_release_wait_hours: totalH * (waitH / s),
       };
@@ -199,12 +221,16 @@ function normalizeMetricsHistory(raw: any, period: PeriodType): MetricsHistoryRe
           item?.dev_review_median_minutes,
           item?.release_wait_median_minutes,
         );
+        const dep =
+          typeof item?.deployment_frequency === "number" ? item.deployment_frequency : null;
+        const cfrPct =
+          typeof item?.change_failure_rate === "number"
+            ? item.change_failure_rate * 100.0
+            : null;
+        const cfrOut = dep === 0 && cfrPct === 0 ? null : cfrPct;
         return {
           date: item?.period_end ?? item?.period_start ?? "",
-          deployment_frequency:
-            typeof item?.deployment_frequency === "number"
-              ? item.deployment_frequency
-              : null,
+          deployment_frequency: dep,
           lead_time_for_changes:
             typeof leadMin === "number" && Number.isFinite(leadMin) ? leadMin / 60.0 : null,
           lead_time_dev_review_hours: devH,
@@ -213,10 +239,7 @@ function normalizeMetricsHistory(raw: any, period: PeriodType): MetricsHistoryRe
             typeof item?.lead_time_sample_count === "number"
               ? item.lead_time_sample_count
               : null,
-          change_failure_rate:
-            typeof item?.change_failure_rate === "number"
-              ? item.change_failure_rate * 100.0
-              : null,
+          change_failure_rate: cfrOut,
           mttr_alpha:
             typeof item?.mttr_alpha_minutes === "number" ? item.mttr_alpha_minutes : null,
           lead_time_by_branch: item?.lead_time_by_branch ?? null,

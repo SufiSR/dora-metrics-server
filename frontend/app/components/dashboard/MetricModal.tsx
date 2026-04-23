@@ -106,7 +106,7 @@ export function MetricModal() {
                   <DoraBadge level={metricData.dora_level} />
                 )}
               </div>
-              {metricData?.value !== null && metricData?.value !== undefined && (
+                {metricData?.value !== null && metricData?.value !== undefined && (
                 <p className="text-3xl font-editorial font-bold text-on-surface">
                   {metricData.value.toFixed(2)}{" "}
                   <span className="text-base font-normal text-on-surface-variant italic">
@@ -114,6 +114,12 @@ export function MetricModal() {
                   </span>
                 </p>
               )}
+              {activeMetricModal === "change_failure_rate" &&
+                (metricData?.value === null || metricData?.value === undefined) && (
+                  <p className="text-2xl font-editorial font-bold text-on-surface-variant">
+                    No data
+                  </p>
+                )}
             </div>
           </div>
 
@@ -174,6 +180,7 @@ export function MetricModal() {
                       stroke={colors.primary}
                       strokeWidth={2}
                       dot={false}
+                      connectNulls
                     />
                   </LineChart>
                 </ResponsiveContainer>

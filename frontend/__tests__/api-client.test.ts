@@ -42,6 +42,25 @@ describe("apiClient", () => {
     expect(result).toEqual(mockData);
   });
 
+  it("nulls history CFR when deployment frequency and CFR ratio are both zero", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            period_end: "2026-04-20",
+            deployment_frequency: 0,
+            lead_time_minutes: null,
+            change_failure_rate: 0,
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await apiClient.getMetricsHistory("30d");
+    expect(result.data_points[0].change_failure_rate).toBeNull();
+  });
+
   it("maps lead-time split fields from history minutes to hours", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -61,6 +80,23 @@ describe("apiClient", () => {
     expect(result.data_points[0].lead_time_for_changes).toBe(4);
     expect(result.data_points[0].lead_time_dev_review_hours).toBe(1.5);
     expect(result.data_points[0].lead_time_release_wait_hours).toBe(2.5);
+  });
+
+  it("treats CFR as no data when deployment frequency and CFR are both zero", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        generated_at: "2026-04-23T09:00:00Z",
+        lead_time_for_changes: { value: 1, performance_level: "ELITE" },
+        deployment_frequency: { value: 0, performance_level: "LOW" },
+        change_failure_rate: { value: 0, performance_level: "ELITE" },
+        mttr_alpha: { value: 60, performance_level: "ELITE" },
+      }),
+    } as Response);
+
+    const result = await apiClient.getMetricsCurrent("30d");
+    expect(result.change_failure_rate.value).toBeNull();
+    expect(result.change_failure_rate.dora_level).toBe("UNKNOWN");
   });
 
   it("scales stacked dev/wait so hours sum to median total lead (DEVOPS-515)", async () => {
