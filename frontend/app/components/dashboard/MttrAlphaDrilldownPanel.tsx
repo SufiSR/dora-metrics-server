@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMttrAlphaIncidents, useMttrAlphaReleases, useMttrAlphaSummary } from "@/lib/hooks";
+import { formatMttrMinutes } from "@/lib/mttr-display";
 
 const RELEASE_PAGE_SIZE = 20;
 const INCIDENT_PAGE_SIZE = 50;
@@ -17,13 +18,6 @@ function formatShort(iso: string | null): string {
   });
 }
 
-function formatMinutes(minutes: number | null): string {
-  if (minutes === null) return "—";
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 24 * 60) return `${(minutes / 60).toFixed(1)}h`;
-  return `${(minutes / (24 * 60)).toFixed(1)}d`;
-}
-
 function pathLabel(path: string): string {
   if (path === "mr_jira_key") return "MR Jira Key";
   if (path === "fix_version") return "Fix Version";
@@ -35,7 +29,7 @@ export function MttrAlphaDrilldownPanel() {
   const [releasePage, setReleasePage] = useState(0);
   const [incidentPage, setIncidentPage] = useState(0);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const { data: summary, isLoading: loadingSummary, isError: summaryError } = useMttrAlphaSummary();
+  const { data: summary, isError: summaryError } = useMttrAlphaSummary();
   const { data: releases, isLoading: loadingReleases, isError: releasesError } = useMttrAlphaReleases(
     releasePage,
     RELEASE_PAGE_SIZE,
@@ -68,7 +62,10 @@ export function MttrAlphaDrilldownPanel() {
           MTTR Alpha details
         </h2>
         <p className="text-xs font-editorial text-on-surface-variant uppercase tracking-widest mt-1">
-          Incident-level view for the active period window (same period type as trend chart).
+          Incident-level view for the active period window (same period type as trend chart).{" "}
+          <span className="text-on-surface-variant/80">
+            Time-to-fix spread and distribution are in the section above.
+          </span>
         </p>
       </div>
 
@@ -93,7 +90,7 @@ export function MttrAlphaDrilldownPanel() {
                   {summary?.incident_count ?? 0}
                 </p>
                 <p className="text-[10px] text-on-surface-variant">
-                  Median: {formatMinutes(summary?.median_minutes ?? null)}
+                  Median: {formatMttrMinutes(summary?.median_minutes ?? null)}
                 </p>
               </div>
               <ul className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
@@ -119,7 +116,7 @@ export function MttrAlphaDrilldownPanel() {
                         </p>
                         <p className="text-[10px] text-on-surface-variant">
                           {formatShort(row.first_fix_release_date)} · {row.issue_count} issue
-                          {row.issue_count === 1 ? "" : "s"} · median {formatMinutes(row.median_minutes)}
+                          {row.issue_count === 1 ? "" : "s"} · median {formatMttrMinutes(row.median_minutes)}
                         </p>
                       </button>
                     </li>
@@ -169,19 +166,19 @@ export function MttrAlphaDrilldownPanel() {
             <p className="text-sm text-error font-editorial">Could not load incidents.</p>
           ) : (
             <>
-            <p className="text-xs font-editorial text-on-surface mb-2">
-              <span className="font-bold">{selectedTag ?? "All releases"}</span>
-              {summaryError ? null : (
-                <span className="text-on-surface-variant">
-                  {" "}
-                  · paths:{" "}
-                  {(summary?.resolution_paths ?? [])
-                    .map((p) => `${pathLabel(p.resolution_path)} ${p.count}`)
-                    .join(" · ")}
-                </span>
-              )}
-            </p>
-            <div className="overflow-x-auto rounded-lg border border-outline-variant/40">
+              <p className="text-xs font-editorial text-on-surface mb-2">
+                <span className="font-bold">{selectedTag ?? "All releases"}</span>
+                {summaryError ? null : (
+                  <span className="text-on-surface-variant">
+                    {" "}
+                    · paths:{" "}
+                    {(summary?.resolution_paths ?? [])
+                      .map((p) => `${pathLabel(p.resolution_path)} ${p.count}`)
+                      .join(" · ")}
+                  </span>
+                )}
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-outline-variant/40">
                 <table className="w-full text-left text-sm min-w-[760px]">
                   <thead>
                     <tr className="bg-surface-container text-[10px] font-editorial uppercase tracking-widest text-outline">
@@ -221,7 +218,7 @@ export function MttrAlphaDrilldownPanel() {
                             {row.summary ?? "—"}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                            {formatMinutes(row.mttr_alpha_minutes)}
+                            {formatMttrMinutes(row.mttr_alpha_minutes)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-xs text-on-surface-variant">
                             {pathLabel(row.mttr_alpha_resolution_path ?? "unknown")}

@@ -28,6 +28,7 @@ from app.schemas.releases import (
     MttrAlphaIncidentRow,
     MttrAlphaReleaseDrilldownItem,
     MttrAlphaReleaseDrilldownListResponse,
+    MttrAlphaHistogramBin,
     MttrAlphaResolutionPathCount,
     MttrAlphaSummaryResponse,
     ReleaseProductionBugListResponse,
@@ -38,6 +39,11 @@ from app.schemas.releases import (
 from app.services.metrics_public_service import (
     build_current_metrics_response,
     build_history_response,
+)
+from app.services.mttr_alpha_stats import (
+    build_mttr_alpha_histogram,
+    median_from_sorted,
+    percentiles_for_mttr_minutes,
 )
 from app.services.release_drilldown_service import (
     build_gitlab_compare_url,
@@ -55,8 +61,7 @@ from app.services.release_drilldown_service import (
     list_mttr_alpha_incidents_page,
     list_mttr_alpha_releases_page,
     list_mttr_alpha_resolution_path_counts,
-    median_mttr_alpha_minutes_in_window,
-    count_mttr_alpha_incidents_in_window,
+    list_mttr_alpha_minutes_in_window,
     count_mttr_alpha_incidents_for_release_tag,
     list_production_bugs_for_customer_release_page,
 )
@@ -406,7 +411,17 @@ def list_production_bugs_for_failed_customer_release(
     )
 
 
-@router.get("/bugs/mttr-alpha/summary", response_model=MttrAlphaSummaryResponse)
+@router.get(
+    "/bugs/mttr-alpha/summary",
+    response_model=MttrAlphaSummaryResponse,
+    summary="MTTR Alpha window summary and distribution",
+    description=(
+        "Incident-level MTTR Alpha for bugs with a resolved time in the date window, matching the "
+        "incidents list filter. P75/P90/P95 use linear interpolation between closest sample ranks (Type 7, "
+        "same as numpy default). P50 matches median_minutes (discrete sample median for even counts). "
+        "The histogram uses fixed upper-exclusive minute bins with an open last bucket on the server."
+    ),
+)
 def get_mttr_alpha_summary(
     db: SessionDep,
     period_type: PeriodType = PeriodType.WEEK,
@@ -414,12 +429,14 @@ def get_mttr_alpha_summary(
     to: Annotated[date | None, Query()] = None,
 ) -> MttrAlphaSummaryResponse:
     period_start, period_end = _mttr_date_window(period_type=period_type, from_=from_, to=to)
-    incident_count = count_mttr_alpha_incidents_in_window(
+    minutes_raw = list_mttr_alpha_minutes_in_window(
         db, period_start=period_start, period_end=period_end
     )
-    median_minutes = median_mttr_alpha_minutes_in_window(
-        db, period_start=period_start, period_end=period_end
-    )
+    incident_count = len(minutes_raw)
+    minutes_sorted = sorted(minutes_raw)
+    median_minutes = median_from_sorted(minutes_sorted) if minutes_sorted else None
+    pct = percentiles_for_mttr_minutes(minutes_sorted)
+    hist = build_mttr_alpha_histogram(minutes_raw)
     path_rows = list_mttr_alpha_resolution_path_counts(
         db, period_start=period_start, period_end=period_end
     )
@@ -429,9 +446,24 @@ def get_mttr_alpha_summary(
         period_end=period_end,
         incident_count=incident_count,
         median_minutes=median_minutes,
+        p50_minutes=median_minutes,
+        p75_minutes=pct.p75_minutes,
+        p90_minutes=pct.p90_minutes,
+        p95_minutes=pct.p95_minutes,
+        min_minutes=pct.min_minutes,
+        max_minutes=pct.max_minutes,
         resolution_paths=[
             MttrAlphaResolutionPathCount(resolution_path=r.resolution_path, count=r.count)
             for r in path_rows
+        ],
+        mttr_alpha_histogram=[
+            MttrAlphaHistogramBin(
+                label=b.label,
+                start_minutes=b.start_minutes,
+                end_minutes=b.end_minutes,
+                count=b.count,
+            )
+            for b in hist
         ],
     )
 

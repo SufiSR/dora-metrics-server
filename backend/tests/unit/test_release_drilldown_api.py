@@ -450,6 +450,16 @@ def test_mttr_alpha_summary_and_incidents(drilldown_client: TestClient) -> None:
     assert s_body["period_type"] == "WEEK"
     assert s_body["incident_count"] == 2
     assert s_body["median_minutes"] == 210
+    assert s_body["p50_minutes"] == 210
+    assert s_body["min_minutes"] == 120
+    assert s_body["max_minutes"] == 300
+    assert s_body["p75_minutes"] == 255
+    assert s_body["p90_minutes"] == 282
+    assert s_body["p95_minutes"] == 291
+    assert len(s_body["mttr_alpha_histogram"]) >= 1
+    hist_by_label = {b["label"]: b["count"] for b in s_body["mttr_alpha_histogram"]}
+    assert hist_by_label.get("1–4h") == 1
+    assert hist_by_label.get("4–24h") == 1
     paths = {row["resolution_path"]: row["count"] for row in s_body["resolution_paths"]}
     assert paths["mr_jira_key"] == 1
     assert paths["fix_version"] == 1

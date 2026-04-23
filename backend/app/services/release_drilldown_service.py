@@ -15,6 +15,7 @@ from app.models.release import Release
 from app.models.repository import Repository
 from app.services.cfr_bug_filter import cfr_eligible_production_bug_predicate
 from app.services.metric_service import merge_request_included_in_lead_time_cohort
+from app.services.mttr_alpha_stats import median_from_sorted
 
 
 def _lane(major: int | None, minor: int | None, patch: int | None) -> str:
@@ -167,9 +168,9 @@ def count_mttr_alpha_incidents_in_window(
     )
 
 
-def median_mttr_alpha_minutes_in_window(
+def list_mttr_alpha_minutes_in_window(
     session: Session, *, period_start: datetime, period_end: datetime
-) -> int | None:
+) -> list[int]:
     values = (
         session.execute(
             select(ProductionBug.mttr_alpha_minutes).where(
@@ -184,15 +185,19 @@ def median_mttr_alpha_minutes_in_window(
         .scalars()
         .all()
     )
-    xs = [int(v) for v in values if v is not None]
+    return [int(v) for v in values if v is not None]
+
+
+def median_mttr_alpha_minutes_in_window(
+    session: Session, *, period_start: datetime, period_end: datetime
+) -> int | None:
+    xs = list_mttr_alpha_minutes_in_window(
+        session, period_start=period_start, period_end=period_end
+    )
     if not xs:
         return None
     xs.sort()
-    n = len(xs)
-    mid = n // 2
-    if n % 2 == 1:
-        return xs[mid]
-    return int(round((xs[mid - 1] + xs[mid]) / 2.0))
+    return median_from_sorted(xs)
 
 
 def list_mttr_alpha_resolution_path_counts(

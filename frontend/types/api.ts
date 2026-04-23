@@ -234,13 +234,27 @@ export interface MttrAlphaResolutionPathCount {
   count: number;
 }
 
+export interface MttrAlphaHistogramBin {
+  label: string;
+  start_minutes: number;
+  end_minutes: number | null;
+  count: number;
+}
+
 export interface MttrAlphaSummaryResponse {
   period_type: "WEEK" | "MONTH" | "QUARTER";
   period_start: string;
   period_end: string;
   incident_count: number;
   median_minutes: number | null;
+  p50_minutes: number | null;
+  p75_minutes: number | null;
+  p90_minutes: number | null;
+  p95_minutes: number | null;
+  min_minutes: number | null;
+  max_minutes: number | null;
   resolution_paths: MttrAlphaResolutionPathCount[];
+  mttr_alpha_histogram: MttrAlphaHistogramBin[];
 }
 
 export interface MttrAlphaIncidentRow {

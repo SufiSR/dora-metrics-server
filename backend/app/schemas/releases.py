@@ -107,13 +107,51 @@ class MttrAlphaResolutionPathCount(BaseModel):
     count: int
 
 
+class MttrAlphaHistogramBin(BaseModel):
+    """One server-side bucket of MTTR Alpha times (minutes since bug report to first fix release)."""
+
+    label: str
+    start_minutes: int = Field(ge=0)
+    end_minutes: int | None = Field(
+        default=None,
+        description="Upper bound (minutes), exclusive; null means no upper bound.",
+    )
+    count: int = Field(ge=0)
+
+
 class MttrAlphaSummaryResponse(BaseModel):
     period_type: str
     period_start: datetime
     period_end: datetime
     incident_count: int
     median_minutes: int | None
+    p50_minutes: int | None = Field(
+        default=None,
+        description="Same value as median_minutes (discrete sample median) for P50 labelling.",
+    )
+    p75_minutes: int | None = Field(
+        default=None,
+        description="P75: linear interpolation between closest ranks (Type 7), rounded to whole minutes.",
+    )
+    p90_minutes: int | None = Field(
+        default=None,
+        description="P90: same convention as p75_minutes.",
+    )
+    p95_minutes: int | None = Field(
+        default=None,
+        description="P95: same convention as p75_minutes.",
+    )
+    min_minutes: int | None = Field(
+        default=None, description="Minimum MTTR in the window (same filter as incident_count)."
+    )
+    max_minutes: int | None = Field(
+        default=None, description="Maximum MTTR in the window (same filter as incident_count)."
+    )
     resolution_paths: list[MttrAlphaResolutionPathCount]
+    mttr_alpha_histogram: list[MttrAlphaHistogramBin] = Field(
+        default_factory=list,
+        description="Binned distribution of MTTR Alpha minutes; empty window yields zero counts in every bin.",
+    )
 
 
 class MttrAlphaIncidentRow(BaseModel):
