@@ -43,7 +43,7 @@ def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(m
     monkeypatch.setattr(sync_pipeline, "load_runtime_config", _fake_load_runtime_config)
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf, **_: 1)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
-    monkeypatch.setattr(sync_pipeline, "_notify_webhook", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sync_pipeline, "send_webhook_notification", lambda *a, **k: True)
     monkeypatch.setattr(sync_pipeline, "_resolve_orphaned_sync_logs", lambda _sf: None)
     monkeypatch.setattr(sync_pipeline, "_run_with_session", lambda _sf, fn: fn(None))
     monkeypatch.setattr(
@@ -87,6 +87,63 @@ def test_run_nightly_sync_executes_required_order_when_both_collectors_succeed(m
     ]
 
 
+def test_run_nightly_sync_skips_snapshots_when_derivation_fails(monkeypatch) -> None:
+    """DEVOPS-514: if any derivation step records an error, do not refresh metric snapshots."""
+    order: list[str] = []
+
+    def _map_fail(_db) -> int:  # type: ignore[no-untyped-def]
+        raise RuntimeError("map failed")
+
+    monkeypatch.setattr(
+        sync_pipeline,
+        "_read_nightly_log_started_at",
+        lambda _db, _lid: datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(sync_pipeline, "_gitlab_table_counts", lambda _db: {"repositories": 1})
+    monkeypatch.setattr(sync_pipeline, "_jira_table_counts", lambda _db: {"bugs": 1})
+    monkeypatch.setattr(sync_pipeline, "_max_metric_snapshot_created_at", lambda _db: None)
+    monkeypatch.setattr(sync_pipeline, "load_runtime_config", _fake_load_runtime_config)
+    monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf, **_: 1)
+    monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(sync_pipeline, "send_webhook_notification", lambda *a, **k: True)
+    monkeypatch.setattr(sync_pipeline, "_resolve_orphaned_sync_logs", lambda _sf: None)
+    monkeypatch.setattr(sync_pipeline, "_run_with_session", lambda _sf, fn: fn(None))
+    monkeypatch.setattr(
+        sync_pipeline,
+        "collect_gitlab_tags_and_releases",
+        lambda _db, **_kwargs: order.append("gitlab") or 10,
+    )
+    monkeypatch.setattr(
+        sync_pipeline,
+        "collect_jira_production_bugs",
+        lambda _db, **_kwargs: order.append("jira") or 11,
+    )
+    monkeypatch.setattr(sync_pipeline, "_map_bugs_to_releases", _map_fail)
+    monkeypatch.setattr(
+        sync_pipeline,
+        "_resolve_mttr_alpha_fix_releases",
+        lambda _db, _config: order.append("mttr_alpha") or 0,
+    )
+    monkeypatch.setattr(
+        sync_pipeline,
+        "hydrate_merge_request_jira_ready_for_qa",
+        lambda *_a, **_k: order.append("hydrate_rfq") or 0,
+    )
+    monkeypatch.setattr(
+        sync_pipeline,
+        "_compute_lead_post_production",
+        lambda _db, **_: order.append("lead_post_prod") or 0,
+    )
+    monkeypatch.setattr(
+        sync_pipeline, "_generate_snapshots", lambda _db, _config: order.append("snapshots") or 15
+    )
+
+    payload = sync_pipeline.run_nightly_sync(config=ConfigurationSchema())
+    assert payload["status"] == "partial_failure"
+    assert "snapshots" not in order
+    assert any("map_bugs" in e for e in payload["errors"])
+
+
 def test_run_nightly_sync_partial_failure_skips_links_mttr_hydrate_lead_post_but_runs_snapshots(
     monkeypatch,
 ) -> None:
@@ -103,7 +160,7 @@ def test_run_nightly_sync_partial_failure_skips_links_mttr_hydrate_lead_post_but
     monkeypatch.setattr(sync_pipeline, "load_runtime_config", _fake_load_runtime_config)
     monkeypatch.setattr(sync_pipeline, "_create_nightly_sync_log", lambda _sf, **_: 2)
     monkeypatch.setattr(sync_pipeline, "_finish_nightly_sync_log", lambda *args, **kwargs: 0)
-    monkeypatch.setattr(sync_pipeline, "_notify_webhook", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sync_pipeline, "send_webhook_notification", lambda *a, **k: True)
     monkeypatch.setattr(sync_pipeline, "_resolve_orphaned_sync_logs", lambda _sf: None)
     monkeypatch.setattr(sync_pipeline, "_run_with_session", lambda _sf, fn: fn(None))
 

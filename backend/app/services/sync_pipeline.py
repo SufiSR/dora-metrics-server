@@ -772,39 +772,48 @@ def run_nightly_sync(
 
         if gitlab_ok or jira_ok:
             if derivation_errors:
-                logger.warning(
-                    "nightly_sync generating snapshots despite derivation errors: %s",
+                # DEVOPS-514: do not publish metric snapshots from partially derived state.
+                logger.info(
+                    "nightly_sync skipped snapshot generation due to derivation errors: %s",
                     "; ".join(derivation_errors),
                 )
-            logger.info(
-                "sync_pipeline sync_log_id=%s trigger=%s phase=snapshots",
-                nightly_log_id,
-                trigger,
-            )
-            _transition_runtime_phase(
-                pipeline_runtime,
-                current_phase="snapshots",
-                phase="snapshots",
-                status="running",
-                message="Snapshot generation started",
-            )
-            _update_nightly_sync_log_details(
-                session_factory,
-                log_id=nightly_log_id,
-                details_json={"pipeline_runtime": pipeline_runtime},
-            )
-            snapshots_written = _run_with_session(
-                session_factory, lambda db: _generate_snapshots(db, effective_config)
-            )
-            records_processed += snapshots_written
-            _transition_runtime_phase(
-                pipeline_runtime,
-                current_phase="snapshots",
-                phase="snapshots",
-                status="success",
-                message="Snapshot generation finished",
-                records_processed={"snapshots_generated": snapshots_written},
-            )
+                _transition_runtime_phase(
+                    pipeline_runtime,
+                    current_phase="snapshots",
+                    phase="snapshots",
+                    status="skipped",
+                    message="Skipped: derivation steps failed (snapshots not refreshed)",
+                )
+            else:
+                logger.info(
+                    "sync_pipeline sync_log_id=%s trigger=%s phase=snapshots",
+                    nightly_log_id,
+                    trigger,
+                )
+                _transition_runtime_phase(
+                    pipeline_runtime,
+                    current_phase="snapshots",
+                    phase="snapshots",
+                    status="running",
+                    message="Snapshot generation started",
+                )
+                _update_nightly_sync_log_details(
+                    session_factory,
+                    log_id=nightly_log_id,
+                    details_json={"pipeline_runtime": pipeline_runtime},
+                )
+                snapshots_written = _run_with_session(
+                    session_factory, lambda db: _generate_snapshots(db, effective_config)
+                )
+                records_processed += snapshots_written
+                _transition_runtime_phase(
+                    pipeline_runtime,
+                    current_phase="snapshots",
+                    phase="snapshots",
+                    status="success",
+                    message="Snapshot generation finished",
+                    records_processed={"snapshots_generated": snapshots_written},
+                )
         else:
             logger.info("nightly_sync skipped snapshots: both collectors failed or were skipped")
             _transition_runtime_phase(
@@ -821,7 +830,7 @@ def run_nightly_sync(
         )
 
         if gitlab_ok and jira_ok:
-            status = "success"
+            status = "partial_failure" if derivation_errors else "success"
         elif gitlab_ok or jira_ok:
             status = "partial_failure"
         else:
