@@ -145,6 +145,7 @@ def test_latest_window_and_load_snapshots() -> None:
                 period_end=date(2026, 4, 13),
                 deployment_freq=Decimal("1.0"),
                 lead_time_minutes=60,
+                dev_review_median_minutes=35,
                 release_wait_median_minutes=30,
                 change_failure_rate=Decimal("0.1"),
                 mttr_minutes=None,
@@ -168,6 +169,7 @@ def test_latest_window_and_load_snapshots() -> None:
         agg = mps._aggregate_rows(rows)
         assert agg["deployment_freq"] == 1.0
         assert agg["lead_time_minutes"] == 60
+        assert agg["dev_review_median_minutes"] == 35
         assert agg["lead_time_sample_count"] == 7
         assert agg["lead_time_match_counts"]["matched"] == 5
         assert agg["lead_time_match_counts"]["first_commit_missing"] == 2
@@ -213,6 +215,7 @@ def test_build_current_metrics_response_with_week_trends_and_repo_filter() -> No
                     period_end=cur_end,
                     deployment_freq=Decimal("2.0"),
                     lead_time_minutes=100,
+                    dev_review_median_minutes=70,
                     release_wait_median_minutes=120,
                     change_failure_rate=Decimal("0.08"),
                     mttr_minutes=None,
@@ -231,6 +234,7 @@ def test_build_current_metrics_response_with_week_trends_and_repo_filter() -> No
                     period_end=prev_end,
                     deployment_freq=Decimal("1.0"),
                     lead_time_minutes=200,
+                    dev_review_median_minutes=160,
                     release_wait_median_minutes=60,
                     change_failure_rate=Decimal("0.12"),
                     mttr_minutes=None,
@@ -246,6 +250,8 @@ def test_build_current_metrics_response_with_week_trends_and_repo_filter() -> No
         assert agg_all.deployment_frequency.value == 2.0
         assert agg_all.deployment_frequency.trend == Trend.UP
         assert agg_all.lead_time.value == 100.0
+        assert agg_all.dev_review_time is not None
+        assert agg_all.dev_review_time.value == 70.0
         assert agg_all.release_wait_time is not None
         assert agg_all.release_wait_time.value == 120.0
         assert agg_all.lead_time_diagnostics is not None
@@ -289,6 +295,7 @@ def test_build_current_metrics_response_aggregates_trailing_quarters_for_yearly_
                     period_end=p_end,
                     deployment_freq=dep,
                     lead_time_minutes=120,
+                    dev_review_median_minutes=80,
                     release_wait_median_minutes=120,
                     change_failure_rate=Decimal("0.08"),
                     mttr_minutes=None,
@@ -333,6 +340,7 @@ def test_build_history_response_pagination_and_levels() -> None:
                     period_end=pe,
                     deployment_freq=Decimal("1.5"),
                     lead_time_minutes=90,
+                    dev_review_median_minutes=30,
                     release_wait_median_minutes=None,
                     change_failure_rate=Decimal("0.05"),
                     mttr_minutes=None,
@@ -402,6 +410,7 @@ def test_build_history_response_clips_future_period_end_to_requested_to_date() -
                 period_end=date(2026, 6, 30),
                 deployment_freq=Decimal("1.0"),
                 lead_time_minutes=60,
+                    dev_review_median_minutes=20,
                 release_wait_median_minutes=30,
                 change_failure_rate=Decimal("0.1"),
                 mttr_minutes=None,
@@ -453,6 +462,7 @@ def test_build_current_metrics_response_clips_future_window_end_to_today() -> No
                 period_end=quarter_end,
                 deployment_freq=Decimal("1.0"),
                 lead_time_minutes=60,
+                    dev_review_median_minutes=20,
                 release_wait_median_minutes=30,
                 change_failure_rate=Decimal("0.1"),
                 mttr_minutes=None,

@@ -63,6 +63,7 @@ class CurrentMetricsResponse(BaseModel):
     repository_count: int
     generated_at: datetime
     mttr_alpha: MetricValue | None = None
+    dev_review_time: MetricValue | None = None
     release_wait_time: MetricValue | None = None
     lead_time_diagnostics: LeadTimeDiagnostics | None = None
 
@@ -84,6 +85,7 @@ class HistoryDataPoint(BaseModel):
     change_failure_rate: float | None
     mttr_minutes: int | None
     mttr_alpha_minutes: int | None = None
+    dev_review_median_minutes: int | None = None
     release_wait_median_minutes: int | None = None
     performance_level: PerformanceLevels
 

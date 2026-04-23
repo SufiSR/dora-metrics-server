@@ -38,6 +38,36 @@ function hoursCell(v: number | null | undefined): string {
   return `${v.toFixed(1)} h`;
 }
 
+function includedLeadTimeCell(included: boolean) {
+  const title = included
+    ? "Counted in lead-time medians (tag date set; not excluded as a release-only MR)."
+    : "Excluded from lead-time medians: missing first-customer tag date, or matches release-only title/source-branch markers while that filter is on in admin config.";
+  if (included) {
+    return (
+      <span
+        className="inline-flex items-center justify-center gap-0.5 text-primary"
+        title={title}
+        aria-label={title}
+      >
+        <span className="material-symbols-outlined text-lg" aria-hidden>
+          check_circle
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center justify-center gap-0.5 text-on-surface-variant"
+      title={title}
+      aria-label={title}
+    >
+      <span className="material-symbols-outlined text-lg" aria-hidden>
+        do_not_disturb_on
+      </span>
+    </span>
+  );
+}
+
 function PaginationBar(props: {
   pagination: {
     page: number;
@@ -291,13 +321,16 @@ export function ReleaseDrilldownPanel() {
                 )}
               </div>
               <div className="overflow-x-auto rounded-lg border border-outline-variant/40">
-                <table className="w-full text-left text-sm min-w-[640px]">
+                <table className="w-full text-left text-sm min-w-[720px]">
                   <thead>
                     <tr className="bg-surface-container text-[10px] font-editorial uppercase tracking-widest text-outline">
                       <th className="px-3 py-2.5">MR</th>
                       <th className="px-3 py-2.5">Title</th>
                       <th className="px-3 py-2.5">Branch</th>
                       <th className="px-3 py-2.5">Merged</th>
+                      <th className="px-3 py-2.5 text-center" title="Same cohort rules as the Median Lead Time KPI">
+                        In KPI
+                      </th>
                       <th className="px-3 py-2.5 text-right">Lead</th>
                       <th className="px-3 py-2.5 text-right">Rel. wait</th>
                       <th className="px-3 py-2.5">Jira</th>
@@ -306,7 +339,7 @@ export function ReleaseDrilldownPanel() {
                   <tbody className="font-editorial text-on-surface divide-y divide-outline-variant/20">
                     {(mrs?.items ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-3 py-6 text-center text-on-surface-variant text-sm">
+                        <td colSpan={8} className="px-3 py-6 text-center text-on-surface-variant text-sm">
                           No merge requests mapped to this tag.
                         </td>
                       </tr>
@@ -322,6 +355,9 @@ export function ReleaseDrilldownPanel() {
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-xs text-on-surface-variant">
                             {formatShort(row.merged_at)}
+                          </td>
+                          <td className="px-3 py-2 text-center align-middle">
+                            {includedLeadTimeCell(row.included_in_lead_time_metrics)}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {hoursCell(row.lead_time_hours)}
@@ -353,8 +389,9 @@ export function ReleaseDrilldownPanel() {
 
       <p className="text-[10px] text-on-surface-variant font-editorial mt-6 leading-relaxed">
         MR-based view: only merge requests ingested from configured GitLab target + additional merge
-        branches. Lead = first commit → tag; release wait = merge → tag. Commits shipped without a
-        merged MR on those branches will not appear here — use the GitLab compare link to audit them.
+        branches. Lead = first commit → tag; release wait = merge → tag. “In KPI” uses the same
+        release-only MR exclusion as the dashboard medians. Commits shipped without a merged MR on
+        those branches will not appear here — use the GitLab compare link to audit them.
       </p>
     </div>
   );

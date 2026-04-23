@@ -23,6 +23,9 @@ export interface AdminConfigResponse {
   target_branches: string[];
   additional_merge_target_branches: string[];
   non_customer_release_markers: string[];
+  exclude_release_only_mrs_from_lead_time: boolean;
+  release_mr_title_markers: string[];
+  release_mr_source_branch_markers: string[];
   jira_url: string;
   jira_username: string;
   jira_token_hint: string | null;
@@ -44,6 +47,9 @@ export interface AdminConfigPatch {
   target_branches?: string[];
   additional_merge_target_branches?: string[];
   non_customer_release_markers?: string[];
+  exclude_release_only_mrs_from_lead_time?: boolean;
+  release_mr_title_markers?: string[];
+  release_mr_source_branch_markers?: string[];
   jira_url?: string;
   jira_username?: string;
   jira_token?: string;

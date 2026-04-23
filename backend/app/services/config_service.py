@@ -84,6 +84,18 @@ def _env_int(name: str) -> int | None:
         return None
 
 
+def _env_bool(name: str) -> bool | None:
+    value = _env_text(name)
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
 def _apply_env_overrides(config: ConfigurationSchema) -> ConfigurationSchema:
     if _env_text("DORA_ENVIRONMENT"):
         config.environment = _env_text("DORA_ENVIRONMENT") or config.environment
@@ -121,6 +133,17 @@ def _apply_env_overrides(config: ConfigurationSchema) -> ConfigurationSchema:
     ]
     if gitlab_markers:
         config.gitlab.non_customer_release_markers = gitlab_markers
+    exclude_release_only = _env_bool("GITLAB_EXCLUDE_RELEASE_ONLY_MRS_FROM_LEAD_TIME")
+    if exclude_release_only is not None:
+        config.gitlab.exclude_release_only_mrs_from_lead_time = exclude_release_only
+    release_title_markers = _split_csv(_env_text("GITLAB_RELEASE_MR_TITLE_MARKERS"))
+    if release_title_markers:
+        config.gitlab.release_mr_title_markers = [item.lower() for item in release_title_markers]
+    release_source_markers = _split_csv(_env_text("GITLAB_RELEASE_MR_SOURCE_BRANCH_MARKERS"))
+    if release_source_markers:
+        config.gitlab.release_mr_source_branch_markers = [
+            item.lower() for item in release_source_markers
+        ]
 
     if _env_text("JIRA_BASE_URL"):
         config.jira.base_url = _env_text("JIRA_BASE_URL") or config.jira.base_url

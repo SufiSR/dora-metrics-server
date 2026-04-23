@@ -262,7 +262,12 @@ def list_merge_requests_for_customer_release(
     )
     total = count_merge_requests_for_release(db, repository_id=repository_id, tag_name=tag_name)
     rows = list_merge_requests_for_release_page(
-        db, repository_id=repository_id, tag_name=tag_name, page=page, size=size
+        db,
+        repository_id=repository_id,
+        tag_name=tag_name,
+        page=page,
+        size=size,
+        config=settings,
     )
     items = [
         ReleaseMergeRequestRow(
@@ -273,6 +278,7 @@ def list_merge_requests_for_customer_release(
             lead_time_hours=r.lead_time_hours,
             release_wait_time_hours=r.release_wait_time_hours,
             jira_key=r.jira_key,
+            included_in_lead_time_metrics=r.included_in_lead_time_metrics,
         )
         for r in rows
     ]

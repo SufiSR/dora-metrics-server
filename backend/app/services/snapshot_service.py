@@ -70,6 +70,7 @@ def refresh_snapshots(
                 period_start=window.period_start,
                 period_end=window.period_end,
                 repository_id=repository_id,
+                config=config,
                 mttr_minutes_override=mttr_resolution_by_window[wk],
                 mttr_alpha_minutes_override=mttr_by_window[wk],
             )
@@ -88,6 +89,7 @@ def refresh_snapshots(
                     period_type=window.period_type,
                     deployment_freq=values.deployment_freq,
                     lead_time_minutes=values.lead_time_minutes,
+                    dev_review_median_minutes=values.dev_review_median_minutes,
                     release_wait_median_minutes=values.release_wait_median_minutes,
                     change_failure_rate=values.change_failure_rate,
                     mttr_minutes=values.mttr_minutes,

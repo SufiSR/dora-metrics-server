@@ -43,6 +43,42 @@ function TextInput({
   );
 }
 
+function ToggleInput({
+  id,
+  label,
+  checked,
+  onChange,
+  helpText,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  helpText?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label
+        htmlFor={id}
+        className="text-[10px] font-editorial font-bold uppercase tracking-[0.1em] text-outline px-1 block"
+      >
+        {label}
+      </label>
+      <label className="flex items-center gap-3 bg-surface-container-low px-4 py-3 rounded-lg">
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 accent-primary"
+        />
+        <span className="text-sm text-on-surface">Enabled</span>
+      </label>
+      {helpText && <p className="text-xs text-on-surface-variant">{helpText}</p>}
+    </div>
+  );
+}
+
 export function GitLabConfigSection({ config, patch, onPatch }: GitLabConfigSectionProps) {
   const v = (key: keyof AdminConfigResponse) =>
     (patch[key as keyof AdminConfigPatch] ?? config[key]) as string;
@@ -131,6 +167,36 @@ export function GitLabConfigSection({ config, patch, onPatch }: GitLabConfigSect
             }
             helpText="Tag suffixes excluded from customer release metrics"
             onChange={(vals) => onPatch({ non_customer_release_markers: vals })}
+          />
+          <ToggleInput
+            id="exclude_release_only_mrs_from_lead_time"
+            label="Exclude release-only MRs from lead time"
+            checked={
+              (patch.exclude_release_only_mrs_from_lead_time ??
+                config.exclude_release_only_mrs_from_lead_time) as boolean
+            }
+            helpText="Recommended default: ignore pure release/version MRs so DORA lead time reflects engineering change flow."
+            onChange={(val) => onPatch({ exclude_release_only_mrs_from_lead_time: val })}
+          />
+          <TagListInput
+            id="release_mr_title_markers"
+            label="Release MR title markers"
+            values={
+              (patch.release_mr_title_markers ??
+                config.release_mr_title_markers) as string[]
+            }
+            helpText="MR titles containing any marker are treated as release-only (when toggle is enabled)."
+            onChange={(vals) => onPatch({ release_mr_title_markers: vals })}
+          />
+          <TagListInput
+            id="release_mr_source_branch_markers"
+            label="Release MR source branch markers"
+            values={
+              (patch.release_mr_source_branch_markers ??
+                config.release_mr_source_branch_markers) as string[]
+            }
+            helpText="Source branches containing any marker are treated as release-only (when toggle is enabled)."
+            onChange={(vals) => onPatch({ release_mr_source_branch_markers: vals })}
           />
         </div>
       </div>

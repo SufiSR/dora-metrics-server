@@ -85,6 +85,7 @@ def test_calculate_period_metrics_returns_expected_values() -> None:
                     gitlab_mr_id=11,
                     target_branch="main",
                     created_at=_utc(2026, 4, 1),
+                    first_commit_at=_utc(2026, 4, 1),
                     merged_at=_utc(2026, 4, 2),
                     first_customer_tag_date=_utc(2026, 4, 6, 8, 0),
                     lead_time_hours=Decimal("10.0"),
@@ -97,6 +98,7 @@ def test_calculate_period_metrics_returns_expected_values() -> None:
                     gitlab_mr_id=12,
                     target_branch="main",
                     created_at=_utc(2026, 4, 2),
+                    first_commit_at=_utc(2026, 4, 2),
                     merged_at=_utc(2026, 4, 3),
                     first_customer_tag_date=_utc(2026, 4, 7, 8, 0),
                     lead_time_hours=Decimal("14.0"),
@@ -116,6 +118,7 @@ def test_calculate_period_metrics_returns_expected_values() -> None:
 
     assert values.deployment_freq == Decimal("2.0000")
     assert values.lead_time_minutes == 720
+    assert values.dev_review_median_minutes == 540
     assert values.release_wait_median_minutes == 180
     assert values.change_failure_rate == Decimal("0.5000")
     assert values.mttr_alpha_minutes == 180
@@ -177,6 +180,77 @@ def test_change_failure_rate_excludes_pre_production_classification() -> None:
             repository_id=1,
         )
     assert rate == Decimal("0")
+
+
+def test_calculate_period_metrics_excludes_release_only_merge_requests_by_default() -> None:
+    with _session() as db:
+        db.add(
+            Repository(
+                id=1,
+                gitlab_id=101,
+                name="repo",
+                path="ops/repo",
+                default_branch="main",
+                active=True,
+            )
+        )
+        db.flush()
+        db.add_all(
+            [
+                MergeRequest(
+                    id=201,
+                    repository_id=1,
+                    gitlab_mr_id=21,
+                    title="BM-33162",
+                    source_branch="feature/BM-33162",
+                    target_branch="10.x",
+                    created_at=_utc(2026, 1, 20, 8, 0),
+                    first_commit_at=_utc(2026, 1, 20, 8, 0),
+                    merged_at=_utc(2026, 1, 21, 8, 0),
+                    first_customer_tag_date=_utc(2026, 1, 22, 8, 0),
+                    lead_time_hours=Decimal("48.0"),
+                    release_wait_time_hours=Decimal("24.0"),
+                ),
+                MergeRequest(
+                    id=202,
+                    repository_id=1,
+                    gitlab_mr_id=22,
+                    title="10.22.1 release",
+                    source_branch="10.22.1-release",
+                    target_branch="10.x",
+                    created_at=_utc(2026, 1, 10, 8, 0),
+                    first_commit_at=_utc(2026, 1, 10, 8, 0),
+                    merged_at=_utc(2026, 1, 11, 8, 0),
+                    first_customer_tag_date=_utc(2026, 1, 22, 8, 0),
+                    lead_time_hours=Decimal("200.0"),
+                    release_wait_time_hours=Decimal("180.0"),
+                ),
+            ]
+        )
+        db.commit()
+
+        default_values = calculate_period_metrics(
+            db,
+            period_start=datetime(2026, 1, 20, tzinfo=timezone.utc).date(),
+            period_end=datetime(2026, 1, 26, tzinfo=timezone.utc).date(),
+            repository_id=1,
+        )
+        include_release_values = calculate_period_metrics(
+            db,
+            period_start=datetime(2026, 1, 20, tzinfo=timezone.utc).date(),
+            period_end=datetime(2026, 1, 26, tzinfo=timezone.utc).date(),
+            repository_id=1,
+            config=ConfigurationSchema.model_validate(
+                {
+                    "gitlab": {
+                        "exclude_release_only_mrs_from_lead_time": False,
+                    }
+                }
+            ),
+        )
+
+    assert default_values.lead_time_minutes == 2880
+    assert include_release_values.lead_time_minutes == 7440
 
 
 def test_change_failure_rate_handles_no_releases_without_division_by_zero() -> None:

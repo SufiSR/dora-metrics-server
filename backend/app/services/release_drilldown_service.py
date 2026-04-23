@@ -7,12 +7,14 @@ from urllib.parse import quote
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
+from app.config_schema import ConfigurationSchema
 from app.models.bug_release import BugRelease
 from app.models.merge_request import MergeRequest
 from app.models.production_bug import ProductionBug
 from app.models.release import Release
 from app.models.repository import Repository
 from app.services.cfr_bug_filter import cfr_eligible_production_bug_predicate
+from app.services.metric_service import merge_request_included_in_lead_time_cohort
 
 
 def _lane(major: int | None, minor: int | None, patch: int | None) -> str:
@@ -47,6 +49,7 @@ class ReleaseMrRow:
     lead_time_hours: float | None
     release_wait_time_hours: float | None
     jira_key: str | None
+    included_in_lead_time_metrics: bool
 
 
 @dataclass(frozen=True)
@@ -497,6 +500,7 @@ def list_merge_requests_for_release_page(
     tag_name: str,
     page: int,
     size: int,
+    config: ConfigurationSchema,
 ) -> list[ReleaseMrRow]:
     q = (
         select(MergeRequest)
@@ -512,6 +516,12 @@ def list_merge_requests_for_release_page(
     for mr in session.execute(q).scalars().all():
         lt = mr.lead_time_hours
         rw = mr.release_wait_time_hours
+        included = merge_request_included_in_lead_time_cohort(
+            title=mr.title,
+            source_branch=mr.source_branch,
+            first_customer_tag_date=mr.first_customer_tag_date,
+            config=config,
+        )
         out.append(
             ReleaseMrRow(
                 gitlab_mr_id=int(mr.gitlab_mr_id),
@@ -521,6 +531,7 @@ def list_merge_requests_for_release_page(
                 lead_time_hours=float(lt) if lt is not None else None,
                 release_wait_time_hours=float(rw) if rw is not None else None,
                 jira_key=mr.jira_key,
+                included_in_lead_time_metrics=included,
             )
         )
     return out

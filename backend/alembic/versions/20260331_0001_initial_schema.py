@@ -54,6 +54,7 @@ def upgrade() -> None:
         sa.Column("period_type", sa.String(length=10), nullable=False),
         sa.Column("deployment_freq", sa.Numeric(precision=10, scale=4), nullable=True),
         sa.Column("lead_time_minutes", sa.Integer(), nullable=True),
+        sa.Column("dev_review_median_minutes", sa.Integer(), nullable=True),
         sa.Column("release_wait_median_minutes", sa.Integer(), nullable=True),
         sa.Column("change_failure_rate", sa.Numeric(precision=5, scale=4), nullable=True),
         sa.Column("mttr_minutes", sa.Integer(), nullable=True),

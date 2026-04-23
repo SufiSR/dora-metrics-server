@@ -44,6 +44,8 @@ export interface MetricDataPoint {
   date: string; // ISO 8601 date
   deployment_frequency: number | null;
   lead_time_for_changes: number | null;
+  lead_time_dev_review_hours?: number | null;
+  lead_time_release_wait_hours?: number | null;
   /** MR count summed across repos for that period (lead time sample). */
   lead_time_sample_count?: number | null;
   change_failure_rate: number | null;
@@ -166,6 +168,8 @@ export interface ReleaseMergeRequestRow {
   lead_time_hours: number | null;
   release_wait_time_hours: number | null;
   jira_key: string | null;
+  /** Same rules as lead-time KPIs: tag date present, and not matching admin “release-only MR” markers when that filter is on. */
+  included_in_lead_time_metrics: boolean;
 }
 
 export interface ReleaseMergeRequestListResponse {

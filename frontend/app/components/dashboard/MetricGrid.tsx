@@ -11,7 +11,7 @@ const METRICS = [
   },
   {
     key: "lead_time_for_changes",
-    label: "Lead Time",
+    label: "Median Lead Time",
     icon: "schedule",
   },
   {

@@ -55,6 +55,7 @@ class ReleaseMergeRequestRow(BaseModel):
     lead_time_hours: float | None
     release_wait_time_hours: float | None
     jira_key: str | None
+    included_in_lead_time_metrics: bool
 
 
 class ReleaseMergeRequestListResponse(BaseModel):

@@ -32,6 +32,7 @@ class MetricSnapshot(Base):
     period_type: Mapped[str] = mapped_column(String(10), nullable=False)
     deployment_freq: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
     lead_time_minutes: Mapped[int | None]
+    dev_review_median_minutes: Mapped[int | None]
     release_wait_median_minutes: Mapped[int | None]
     change_failure_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     mttr_minutes: Mapped[int | None]

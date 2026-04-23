@@ -5,9 +5,10 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from statistics import median
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.config_schema import ConfigurationSchema
 from app.models.bug_release import BugRelease
 from app.models.merge_request import MergeRequest
 from app.models.production_bug import ProductionBug
@@ -24,6 +25,7 @@ _MTTR_COMPUTE_SENTINEL = object()
 class MetricValues:
     deployment_freq: Decimal
     lead_time_minutes: int | None
+    dev_review_median_minutes: int | None
     release_wait_median_minutes: int | None
     change_failure_rate: Decimal
     mttr_minutes: int | None
@@ -63,9 +65,11 @@ def calculate_period_metrics(
     period_start: date,
     period_end: date,
     repository_id: int,
+    config: ConfigurationSchema | None = None,
     mttr_minutes_override: int | None | object = _MTTR_COMPUTE_SENTINEL,
     mttr_alpha_minutes_override: int | None | object = _MTTR_COMPUTE_SENTINEL,
 ) -> MetricValues:
+    runtime_config = config or ConfigurationSchema()
     start_dt, end_dt = _period_datetimes(period_start, period_end)
     deployment_freq = calculate_deployment_frequency_per_week(
         session,
@@ -78,12 +82,21 @@ def calculate_period_metrics(
         start_dt=start_dt,
         end_dt=end_dt,
         repository_id=repository_id,
+        config=runtime_config,
+    )
+    dev_review_median_minutes = calculate_dev_review_minutes(
+        session,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        repository_id=repository_id,
+        config=runtime_config,
     )
     release_wait_median_minutes = calculate_release_wait_minutes(
         session,
         start_dt=start_dt,
         end_dt=end_dt,
         repository_id=repository_id,
+        config=runtime_config,
     )
     change_failure_rate = calculate_change_failure_rate(
         session,
@@ -118,10 +131,12 @@ def calculate_period_metrics(
         start_dt=start_dt,
         end_dt=end_dt,
         repository_id=repository_id,
+        config=runtime_config,
     )
     return MetricValues(
         deployment_freq=deployment_freq,
         lead_time_minutes=lead_time_minutes,
+        dev_review_median_minutes=dev_review_median_minutes,
         release_wait_median_minutes=release_wait_median_minutes,
         change_failure_rate=change_failure_rate,
         mttr_minutes=mttr_minutes,
@@ -163,15 +178,19 @@ def calculate_lead_time_minutes(
     start_dt: datetime,
     end_dt: datetime,
     repository_id: int,
+    config: ConfigurationSchema | None = None,
 ) -> int | None:
+    filters = _lead_time_mr_filters(
+        start_dt=start_dt,
+        end_dt=end_dt,
+        repository_id=repository_id,
+        config=config or ConfigurationSchema(),
+    )
     return _median_minutes_from_hours(
         session.execute(
             select(MergeRequest.lead_time_hours).where(
-                MergeRequest.repository_id == repository_id,
-                MergeRequest.first_customer_tag_date.is_not(None),
-                MergeRequest.first_customer_tag_date >= start_dt,
-                MergeRequest.first_customer_tag_date < end_dt,
                 MergeRequest.lead_time_hours.is_not(None),
+                *filters,
             )
         )
         .scalars()
@@ -185,28 +204,29 @@ def calculate_lead_time_diagnostics(
     start_dt: datetime,
     end_dt: datetime,
     repository_id: int,
+    config: ConfigurationSchema | None = None,
 ) -> tuple[int, dict[str, int]]:
     """MR counts in the lead-time window.
 
     Sample used for median plus status breakdown (all rows with tag date).
     """
+    filters = _lead_time_mr_filters(
+        start_dt=start_dt,
+        end_dt=end_dt,
+        repository_id=repository_id,
+        config=config or ConfigurationSchema(),
+    )
     sample = int(
         session.execute(
             select(func.count(MergeRequest.id)).where(
-                MergeRequest.repository_id == repository_id,
-                MergeRequest.first_customer_tag_date.is_not(None),
-                MergeRequest.first_customer_tag_date >= start_dt,
-                MergeRequest.first_customer_tag_date < end_dt,
                 MergeRequest.lead_time_hours.is_not(None),
+                *filters,
             )
         ).scalar_one()
     )
     rows = session.execute(
         select(MergeRequest.lead_time_match_status, func.count(MergeRequest.id)).where(
-            MergeRequest.repository_id == repository_id,
-            MergeRequest.first_customer_tag_date.is_not(None),
-            MergeRequest.first_customer_tag_date >= start_dt,
-            MergeRequest.first_customer_tag_date < end_dt,
+            *filters,
         ).group_by(MergeRequest.lead_time_match_status)
     ).all()
     counts: dict[str, int] = {}
@@ -222,20 +242,125 @@ def calculate_release_wait_minutes(
     start_dt: datetime,
     end_dt: datetime,
     repository_id: int,
+    config: ConfigurationSchema | None = None,
 ) -> int | None:
+    filters = _lead_time_mr_filters(
+        start_dt=start_dt,
+        end_dt=end_dt,
+        repository_id=repository_id,
+        config=config or ConfigurationSchema(),
+    )
     return _median_minutes_from_hours(
         session.execute(
             select(MergeRequest.release_wait_time_hours).where(
-                MergeRequest.repository_id == repository_id,
-                MergeRequest.first_customer_tag_date.is_not(None),
-                MergeRequest.first_customer_tag_date >= start_dt,
-                MergeRequest.first_customer_tag_date < end_dt,
                 MergeRequest.release_wait_time_hours.is_not(None),
+                *filters,
             )
         )
         .scalars()
         .all()
     )
+
+
+def calculate_dev_review_minutes(
+    session: Session,
+    *,
+    start_dt: datetime,
+    end_dt: datetime,
+    repository_id: int,
+    config: ConfigurationSchema | None = None,
+) -> int | None:
+    filters = _lead_time_mr_filters(
+        start_dt=start_dt,
+        end_dt=end_dt,
+        repository_id=repository_id,
+        config=config or ConfigurationSchema(),
+    )
+    rows = session.execute(
+        select(MergeRequest.lead_time_hours, MergeRequest.release_wait_time_hours).where(
+            MergeRequest.lead_time_hours.is_not(None),
+            MergeRequest.release_wait_time_hours.is_not(None),
+            *filters,
+        )
+    ).all()
+    if not rows:
+        return None
+    dev_review_minutes: list[float] = []
+    for lead_time_hours, release_wait_hours in rows:
+        if lead_time_hours is None or release_wait_hours is None:
+            continue
+        delta_hours = float(lead_time_hours) - float(release_wait_hours)
+        if delta_hours >= 0:
+            dev_review_minutes.append(delta_hours * 60.0)
+    if not dev_review_minutes:
+        return None
+    return int(Decimal(str(median(dev_review_minutes))).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _lead_time_mr_filters(
+    *,
+    start_dt: datetime,
+    end_dt: datetime,
+    repository_id: int,
+    config: ConfigurationSchema,
+) -> list[object]:
+    filters: list[object] = [
+        MergeRequest.repository_id == repository_id,
+        MergeRequest.first_customer_tag_date.is_not(None),
+        MergeRequest.first_customer_tag_date >= start_dt,
+        MergeRequest.first_customer_tag_date < end_dt,
+    ]
+
+    if not config.gitlab.exclude_release_only_mrs_from_lead_time:
+        return filters
+
+    title_markers = [
+        marker.strip().lower()
+        for marker in config.gitlab.release_mr_title_markers
+        if marker.strip()
+    ]
+    source_markers = [
+        marker.strip().lower()
+        for marker in config.gitlab.release_mr_source_branch_markers
+        if marker.strip()
+    ]
+    exclusion_clauses: list[object] = []
+    for marker in title_markers:
+        exclusion_clauses.append(
+            func.lower(func.coalesce(MergeRequest.title, "")).like(f"%{marker}%")
+        )
+    for marker in source_markers:
+        exclusion_clauses.append(
+            func.lower(func.coalesce(MergeRequest.source_branch, "")).like(f"%{marker}%")
+        )
+    if exclusion_clauses:
+        filters.append(~or_(*exclusion_clauses))
+    return filters
+
+
+def merge_request_included_in_lead_time_cohort(
+    *,
+    title: str | None,
+    source_branch: str | None,
+    first_customer_tag_date: datetime | None,
+    config: ConfigurationSchema,
+) -> bool:
+    """True when an MR would pass `_lead_time_mr_filters` except period/repository (same exclusion rules)."""
+    if first_customer_tag_date is None:
+        return False
+    if not config.gitlab.exclude_release_only_mrs_from_lead_time:
+        return True
+    t = (title or "").lower()
+    src = (source_branch or "").lower()
+    for marker in config.gitlab.release_mr_title_markers:
+        m = marker.strip().lower()
+        if m and m in t:
+            return False
+    for marker in config.gitlab.release_mr_source_branch_markers:
+        m = marker.strip().lower()
+        if m and m in src:
+            return False
+    return True
 
 
 def calculate_change_failure_rate(

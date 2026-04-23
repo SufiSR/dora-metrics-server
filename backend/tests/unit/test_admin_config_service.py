@@ -70,6 +70,9 @@ def test_build_admin_config_response(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.gitlab_url == "https://db-gl.example"
     assert resp.jira_username == "db@user.test"
     assert resp.gitlab_project_paths == ["a/b"]
+    assert resp.exclude_release_only_mrs_from_lead_time is True
+    assert " release" in resp.release_mr_title_markers
+    assert "release" in resp.release_mr_source_branch_markers
 
 
 def test_patch_admin_configuration_updates_settings(
@@ -89,6 +92,9 @@ def test_patch_admin_configuration_updates_settings(
                 jira_username="patch@user.test",
                 sync_cron_hour=3,
                 notifications_webhook_url="https://hooks.example/x",
+                exclude_release_only_mrs_from_lead_time=False,
+                release_mr_title_markers=[" release", "gui "],
+                release_mr_source_branch_markers=["release", "hotfix-release"],
             ),
         )
         row = db.get(AppConfiguration, 1)
@@ -97,6 +103,12 @@ def test_patch_admin_configuration_updates_settings(
         assert row.settings_json["jira"]["api_user_email"] == "patch@user.test"
         assert row.settings_json["backend"]["sync_cron_hour"] == 3
         assert row.settings_json["notifications"]["webhook_url"] == "https://hooks.example/x"
+        assert row.settings_json["gitlab"]["exclude_release_only_mrs_from_lead_time"] is False
+        assert row.settings_json["gitlab"]["release_mr_title_markers"] == [" release", "gui "]
+        assert row.settings_json["gitlab"]["release_mr_source_branch_markers"] == [
+            "release",
+            "hotfix-release",
+        ]
 
 
 def test_patch_admin_configuration_encrypts_tokens(

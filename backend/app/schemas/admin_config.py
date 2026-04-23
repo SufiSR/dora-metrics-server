@@ -13,6 +13,9 @@ class AdminConfigResponse(BaseModel):
     target_branches: list[str]
     additional_merge_target_branches: list[str]
     non_customer_release_markers: list[str]
+    exclude_release_only_mrs_from_lead_time: bool
+    release_mr_title_markers: list[str]
+    release_mr_source_branch_markers: list[str]
     jira_url: str
     jira_username: str
     jira_token_hint: str | None
@@ -34,6 +37,9 @@ class AdminConfigPatch(BaseModel):
     target_branches: list[str] | None = None
     additional_merge_target_branches: list[str] | None = None
     non_customer_release_markers: list[str] | None = None
+    exclude_release_only_mrs_from_lead_time: bool | None = None
+    release_mr_title_markers: list[str] | None = None
+    release_mr_source_branch_markers: list[str] | None = None
     jira_url: str | None = None
     jira_username: str | None = None
     jira_token: str | None = None

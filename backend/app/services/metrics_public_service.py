@@ -276,6 +276,7 @@ def _merge_lead_time_match_counts(rows: list[MetricSnapshot]) -> dict[str, int]:
 def _aggregate_rows(rows: list[MetricSnapshot]) -> dict[str, float | int | None | dict[str, int]]:
     dep = _mean_float_from_decimal([r.deployment_freq for r in rows])
     lead = _median_int([r.lead_time_minutes for r in rows])
+    dev_review = _median_int([r.dev_review_median_minutes for r in rows])
     rw = _median_int([r.release_wait_median_minutes for r in rows])
     cfr = _mean_float_from_decimal([r.change_failure_rate for r in rows])
     mttr_alpha = _median_int([r.mttr_alpha_minutes for r in rows])
@@ -284,6 +285,7 @@ def _aggregate_rows(rows: list[MetricSnapshot]) -> dict[str, float | int | None 
     return {
         "deployment_freq": dep,
         "lead_time_minutes": lead,
+        "dev_review_median_minutes": dev_review,
         "release_wait_median_minutes": rw,
         "change_failure_rate": cfr,
         "mttr_alpha_minutes": mttr_alpha,
@@ -374,6 +376,8 @@ def build_current_metrics_response(
     cfr_p = prev["change_failure_rate"]
     mttr_a = cur["mttr_alpha_minutes"]
     mttr_p = prev["mttr_alpha_minutes"]
+    dev_review = cur["dev_review_median_minutes"]
+    dev_review_p = prev["dev_review_median_minutes"]
     rw = cur["release_wait_median_minutes"]
     rw_p = prev["release_wait_median_minutes"]
 
@@ -390,6 +394,10 @@ def build_current_metrics_response(
     t_rw, p_rw = _trend_for_values(
         float(rw) if rw is not None else None,
         float(rw_p) if rw_p is not None else None,
+    )
+    t_dev_review, p_dev_review = _trend_for_values(
+        float(dev_review) if dev_review is not None else None,
+        float(dev_review_p) if dev_review_p is not None else None,
     )
 
     overall_raw = classify_performance_level(
@@ -482,6 +490,18 @@ def build_current_metrics_response(
             trend_percentage=p_mttr,
             performance_level=mttr_level,
         ),
+        dev_review_time=MetricValue(
+            value=float(dev_review) if dev_review is not None else None,
+            unit="MINUTES",
+            display_value=_minutes_display(dev_review),
+            trend=t_dev_review,
+            trend_percentage=p_dev_review,
+            performance_level=(
+                PerformanceLevel(_lead_level_only(dev_review))
+                if dev_review is not None
+                else None
+            ),
+        ),
         release_wait_time=MetricValue(
             value=float(rw) if rw is not None else None,
             unit="MINUTES",
@@ -544,6 +564,7 @@ def build_history_response(
         lead = agg["lead_time_minutes"]
         cfr = agg["change_failure_rate"]
         mttr_alpha = agg["mttr_alpha_minutes"]
+        dev_review = agg["dev_review_median_minutes"]
         rw = agg["release_wait_median_minutes"]
         levels = _level_for_row(
             dep=dep,
@@ -562,6 +583,7 @@ def build_history_response(
                 change_failure_rate=cfr,
                 mttr_minutes=mttr_alpha,
                 mttr_alpha_minutes=mttr_alpha,
+                dev_review_median_minutes=dev_review,
                 release_wait_median_minutes=rw,
                 performance_level=levels,
             )

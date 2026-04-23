@@ -25,6 +25,11 @@ gitlab:
   non_customer_release_markers:
     - rc
     - beta
+  exclude_release_only_mrs_from_lead_time: true
+  release_mr_title_markers:
+    - " release"
+  release_mr_source_branch_markers:
+    - release
 
 jira:
   base_url: https://plunet.atlassian.net

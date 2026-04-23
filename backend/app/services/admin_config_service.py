@@ -50,6 +50,9 @@ def build_admin_config_response(db: Session) -> AdminConfigResponse:
         target_branches=list(cfg.gitlab.target_branches),
         additional_merge_target_branches=list(cfg.gitlab.additional_merge_target_branches),
         non_customer_release_markers=list(cfg.gitlab.non_customer_release_markers),
+        exclude_release_only_mrs_from_lead_time=cfg.gitlab.exclude_release_only_mrs_from_lead_time,
+        release_mr_title_markers=list(cfg.gitlab.release_mr_title_markers),
+        release_mr_source_branch_markers=list(cfg.gitlab.release_mr_source_branch_markers),
         jira_url=cfg.jira.base_url,
         jira_username=_jira_username_for_display(settings_json),
         jira_token_hint=config_service.mask_secret_hint(runtime.jira_token or None),
@@ -111,6 +114,14 @@ def patch_admin_configuration(db: Session, patch: AdminConfigPatch) -> AdminConf
         gl["additional_merge_target_branches"] = data.pop("additional_merge_target_branches")
     if "non_customer_release_markers" in data:
         gl["non_customer_release_markers"] = data.pop("non_customer_release_markers")
+    if "exclude_release_only_mrs_from_lead_time" in data:
+        gl["exclude_release_only_mrs_from_lead_time"] = data.pop(
+            "exclude_release_only_mrs_from_lead_time"
+        )
+    if "release_mr_title_markers" in data:
+        gl["release_mr_title_markers"] = data.pop("release_mr_title_markers")
+    if "release_mr_source_branch_markers" in data:
+        gl["release_mr_source_branch_markers"] = data.pop("release_mr_source_branch_markers")
     if "jira_url" in data and data["jira_url"] is not None:
         jr["base_url"] = data.pop("jira_url")
     if "jira_username" in data:

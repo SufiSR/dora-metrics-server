@@ -93,11 +93,23 @@ function normalizeMetricsCurrent(raw: any, period: PeriodType): MetricsCurrentRe
   if (raw && "lead_time_for_changes" in raw) {
     return raw as MetricsCurrentResponse;
   }
+  const leadMetric = mapMetric(raw?.release_wait_time ?? raw?.lead_time ?? raw?.mean_lead_time, "lead");
+  const totalLeadHours =
+    typeof raw?.lead_time?.value === "number" ? raw.lead_time.value / 60.0 : null;
+  const devReviewHours =
+    typeof raw?.dev_review_time?.value === "number" ? raw.dev_review_time.value / 60.0 : null;
+  if (totalLeadHours !== null || devReviewHours !== null) {
+    leadMetric.secondary_text = `Total lead ${
+      totalLeadHours !== null ? `${totalLeadHours.toFixed(1)}h` : "—"
+    } · dev/review ${
+      devReviewHours !== null ? `${devReviewHours.toFixed(1)}h` : "—"
+    }`;
+  }
   return {
     generated_at: raw?.generated_at ?? null,
     period_label: raw?.period_end ?? "",
     deployment_frequency: mapMetric(raw?.deployment_frequency, "deploy", period),
-    lead_time_for_changes: mapMetric(raw?.lead_time ?? raw?.mean_lead_time, "lead"),
+    lead_time_for_changes: leadMetric,
     change_failure_rate: mapMetric(raw?.change_failure_rate, "cfr"),
     mttr_alpha: mapMetric(raw?.mttr_alpha ?? raw?.mttr, "mttr"),
     lead_time_diagnostics: raw?.lead_time_diagnostics ?? null,
@@ -129,6 +141,14 @@ function normalizeMetricsHistory(raw: any, period: PeriodType): MetricsHistoryRe
         lead_time_for_changes:
           typeof item?.lead_time_minutes === "number"
             ? item.lead_time_minutes / 60.0
+            : null,
+        lead_time_dev_review_hours:
+          typeof item?.dev_review_median_minutes === "number"
+            ? item.dev_review_median_minutes / 60.0
+            : null,
+        lead_time_release_wait_hours:
+          typeof item?.release_wait_median_minutes === "number"
+            ? item.release_wait_median_minutes / 60.0
             : null,
         lead_time_sample_count:
           typeof item?.lead_time_sample_count === "number"

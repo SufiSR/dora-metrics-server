@@ -130,6 +130,22 @@ def test_customer_drilldown_pagination_and_mr_list(drilldown_client: TestClient)
                 jira_key=None,
             )
         )
+        db.add(
+            MergeRequest(
+                id=3,
+                repository_id=1,
+                gitlab_mr_id=102,
+                title="Version bump release",
+                target_branch="main",
+                created_at=_utc(2026, 4, 1),
+                merged_at=_utc(2026, 4, 4),
+                first_customer_tag="v11.0.2",
+                first_customer_tag_date=_utc(2026, 4, 15, 12, 0),
+                lead_time_hours=Decimal("2.0"),
+                release_wait_time_hours=Decimal("1.0"),
+                jira_key=None,
+            )
+        )
         db.commit()
 
     r1 = drilldown_client.get(
@@ -142,7 +158,7 @@ def test_customer_drilldown_pagination_and_mr_list(drilldown_client: TestClient)
     assert body1["pagination"]["has_next"] is True
     assert len(body1["items"]) == 2
     assert body1["items"][0]["tag_name"] == "v11.0.2"
-    assert body1["items"][0]["mr_count"] == 2
+    assert body1["items"][0]["mr_count"] == 3
     assert body1["items"][0]["lane"] == "patch"
 
     r2 = drilldown_client.get(
@@ -161,11 +177,12 @@ def test_customer_drilldown_pagination_and_mr_list(drilldown_client: TestClient)
     )
     assert mr_resp.status_code == 200
     mbody = mr_resp.json()
-    assert mbody["pagination"]["total_elements"] == 2
+    assert mbody["pagination"]["total_elements"] == 3
     assert mbody["pagination"]["has_next"] is True
     assert len(mbody["items"]) == 1
-    # merged_at desc: MR 101 merged Apr 3 before MR 100 Apr 2? desc means later first — 101 first
-    assert mbody["items"][0]["gitlab_mr_id"] == 101
+    # merged_at desc: 102 (Apr 4) then 101 (Apr 3) then 100 (Apr 2)
+    assert mbody["items"][0]["gitlab_mr_id"] == 102
+    assert mbody["items"][0]["included_in_lead_time_metrics"] is False
     assert mbody["previous_customer_tag"] == "v11.0.1"
     assert mbody["mr_with_jira_key_count"] == 1
     assert mbody.get("gitlab_compare_url")
@@ -178,7 +195,17 @@ def test_customer_drilldown_pagination_and_mr_list(drilldown_client: TestClient)
         "/api/metrics/releases/customer/merge-requests",
         params={"repository_id": 1, "tag_name": "v11.0.2", "page": 1, "size": 1},
     )
-    assert mr_page1.json()["items"][0]["gitlab_mr_id"] == 100
+    p1 = mr_page1.json()["items"][0]
+    assert p1["gitlab_mr_id"] == 101
+    assert p1["included_in_lead_time_metrics"] is True
+
+    mr_page2 = drilldown_client.get(
+        "/api/metrics/releases/customer/merge-requests",
+        params={"repository_id": 1, "tag_name": "v11.0.2", "page": 2, "size": 1},
+    )
+    p2 = mr_page2.json()["items"][0]
+    assert p2["gitlab_mr_id"] == 100
+    assert p2["included_in_lead_time_metrics"] is True
 
     missing = drilldown_client.get(
         "/api/metrics/releases/customer/merge-requests",

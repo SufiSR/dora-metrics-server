@@ -29,9 +29,9 @@ export const METRIC_EXPLANATIONS: Record<string, MetricExplanation> = {
   },
   lead_time_for_changes: {
     key: "lead_time_for_changes",
-    title: "Lead Time for Changes",
+    title: "Median Lead Time",
     description:
-      "The time from code commit to running in production. Measures the speed of the delivery pipeline. Shorter is better.",
+      "This KPI is built from weekly medians of per–merge-request times, then aggregated for the dashboard horizon (for example the last five weeks for a 30-day view). The large value is the median release wait (merge to first customer release tag). Supporting lines show total lead time (first commit to tag) and dev/review time (lead minus release wait) for context. MRs that match your admin “release-only” title or source-branch markers are excluded from these medians by default so pure release packaging work does not skew the numbers. The trend chart uses the same snapshot pipeline, so stacked lead-time series follow the same inclusion rules after snapshots are refreshed.",
     unitLabel: "hours",
     doraThresholds: {
       elite: "Less than 1 hour",

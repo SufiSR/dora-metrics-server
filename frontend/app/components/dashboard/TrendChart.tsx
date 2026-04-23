@@ -9,6 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   type TooltipProps,
 } from "recharts";
@@ -19,13 +20,15 @@ import type { MetricDataPoint } from "@/types/api";
 
 const METRIC_OPTIONS: { key: TrendOverviewMetric; label: string }[] = [
   { key: "deployment_frequency",    label: "Deployment Frequency" },
-  { key: "lead_time_for_changes",   label: "Lead Time" },
+  { key: "lead_time_for_changes",   label: "Median Lead Time" },
   { key: "change_failure_rate",     label: "Failure Rate" },
   { key: "mttr_alpha",              label: "MTTR Alpha" },
 ];
 
 interface ChartColors {
   primary: string;
+  leadDev: string;
+  leadWait: string;
   grid: string;
   axisLabel: string;
   tooltipBg: string;
@@ -33,24 +36,57 @@ interface ChartColors {
 }
 
 function CustomTooltip(
-  props: TooltipProps<number, string> & { colors: ChartColors; unit: string }
+  props: TooltipProps<number, string> & {
+    colors: ChartColors;
+    unit: string;
+    activeMetric: TrendOverviewMetric;
+  }
 ) {
-  const { active, colors, unit } = props;
+  const { active, colors, unit, activeMetric } = props;
   // Recharts injects payload/label at runtime but types differ by version
-  const payload = (props as { payload?: Array<{ value?: number }> }).payload;
+  const payload = (props as { payload?: Array<{ dataKey?: string; value?: number }> }).payload;
   const label = (props as { label?: string }).label;
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value;
+  const devHours =
+    activeMetric === "lead_time_for_changes"
+      ? payload.find((p) => p.dataKey === "lead_time_dev_review_hours")?.value
+      : undefined;
+  const waitHours =
+    activeMetric === "lead_time_for_changes"
+      ? payload.find((p) => p.dataKey === "lead_time_release_wait_hours")?.value
+      : undefined;
+  const totalHours =
+    activeMetric === "lead_time_for_changes"
+      ? (Number(devHours ?? 0) + Number(waitHours ?? 0))
+      : undefined;
   return (
     <div
       className="px-3 py-2 rounded-lg text-[11px] font-editorial font-bold shadow-xl"
       style={{ background: colors.tooltipBg, color: colors.tooltipText }}
     >
       <p>{label}</p>
-      <p className="text-[13px] mt-0.5">
-        {value !== undefined ? Number(value).toFixed(2) : "—"}{" "}
-        <span className="font-normal text-[10px] opacity-70">{unit}</span>
-      </p>
+      {activeMetric === "lead_time_for_changes" ? (
+        <div className="text-[12px] mt-0.5 space-y-0.5">
+          <p>
+            Dev/review: {devHours !== undefined ? Number(devHours).toFixed(2) : "—"}{" "}
+            <span className="font-normal text-[10px] opacity-70">h</span>
+          </p>
+          <p>
+            Release wait: {waitHours !== undefined ? Number(waitHours).toFixed(2) : "—"}{" "}
+            <span className="font-normal text-[10px] opacity-70">h</span>
+          </p>
+          <p>
+            Total lead: {totalHours !== undefined ? totalHours.toFixed(2) : "—"}{" "}
+            <span className="font-normal text-[10px] opacity-70">h</span>
+          </p>
+        </div>
+      ) : (
+        <p className="text-[13px] mt-0.5">
+          {value !== undefined ? Number(value).toFixed(2) : "—"}{" "}
+          <span className="font-normal text-[10px] opacity-70">{unit}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -71,7 +107,7 @@ const METRIC_FOOTNOTES: Record<TrendOverviewMetric, string> = {
   deployment_frequency:
     "Customer-release tags per week. Swimlane below lists release events on the timeline.",
   lead_time_for_changes:
-    "MR-based DORA lead time: earliest commit on each merged MR → first customer tag. Configure extra merge branches in Admin → GitLab if patch lines are missing.",
+    "Weekly medians from snapshot data, stacked into dev/review and release wait (same release-only MR exclusion as the Median Lead Time KPI when that filter is enabled). Hover a period for segment values and total lead.",
   change_failure_rate:
     "Share of customer releases in the window with at least one linked healthy production bug.",
   mttr_alpha:
@@ -86,6 +122,8 @@ export function TrendChart() {
   const { resolvedTheme } = useTheme();
   const [colors, setColors] = useState<ChartColors>({
     primary:     "#4648d4",
+    leadDev:     "#4648d4",
+    leadWait:    "#7c7ef0",
     grid:        "#edeeef",
     axisLabel:   "#464554",
     tooltipBg:   "#2e3132",
@@ -94,7 +132,12 @@ export function TrendChart() {
 
   // Re-read CSS vars whenever theme changes
   useEffect(() => {
-    setColors(getChartColors());
+    const nextColors = getChartColors();
+    setColors({
+      ...nextColors,
+      leadDev: nextColors.primary,
+      leadWait: "#8b8df0",
+    });
   }, [resolvedTheme]);
 
   const points: MetricDataPoint[] = data?.data_points ?? [];
@@ -176,19 +219,54 @@ export function TrendChart() {
               />
               <Tooltip
                 content={
-                  <CustomTooltip colors={colors} unit={unit} />
+                  <CustomTooltip colors={colors} unit={unit} activeMetric={activeMetric} />
                 }
                 cursor={{ stroke: colors.grid, strokeWidth: 1 }}
               />
-              <Area
-                type="monotone"
-                dataKey={activeMetric}
-                stroke={colors.primary}
-                strokeWidth={2.5}
-                fill="url(#areaGradient)"
-                dot={{ r: 2.5, fill: colors.primary, stroke: colors.primary, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: colors.primary, strokeWidth: 0 }}
-              />
+              {activeMetric === "lead_time_for_changes" && (
+                <Legend
+                  wrapperStyle={{ fontSize: "10px", fontFamily: "Space Grotesk" }}
+                  formatter={(value) => <span style={{ color: colors.axisLabel }}>{value}</span>}
+                />
+              )}
+              {activeMetric === "lead_time_for_changes" ? (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="lead_time_dev_review_hours"
+                    stackId="leadSplit"
+                    name="Dev/review"
+                    stroke={colors.leadDev}
+                    strokeWidth={2}
+                    fill={colors.leadDev}
+                    fillOpacity={0.22}
+                    dot={{ r: 2.5, fill: colors.leadDev, stroke: colors.leadDev, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: colors.leadDev, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="lead_time_release_wait_hours"
+                    stackId="leadSplit"
+                    name="Release wait"
+                    stroke={colors.leadWait}
+                    strokeWidth={2}
+                    fill={colors.leadWait}
+                    fillOpacity={0.28}
+                    dot={{ r: 2.5, fill: colors.leadWait, stroke: colors.leadWait, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: colors.leadWait, strokeWidth: 0 }}
+                  />
+                </>
+              ) : (
+                <Area
+                  type="monotone"
+                  dataKey={activeMetric}
+                  stroke={colors.primary}
+                  strokeWidth={2.5}
+                  fill="url(#areaGradient)"
+                  dot={{ r: 2.5, fill: colors.primary, stroke: colors.primary, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: colors.primary, strokeWidth: 0 }}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         )}

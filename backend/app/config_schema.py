@@ -27,6 +27,9 @@ class GitLabConfig(BaseModel):
         ),
     )
     non_customer_release_markers: list[str] = Field(default_factory=lambda: ["rc", "beta"])
+    exclude_release_only_mrs_from_lead_time: bool = True
+    release_mr_title_markers: list[str] = Field(default_factory=lambda: [" release"])
+    release_mr_source_branch_markers: list[str] = Field(default_factory=lambda: ["release"])
 
 
 class JiraConfig(BaseModel):

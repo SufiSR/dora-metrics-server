@@ -120,7 +120,7 @@ export function MetricCard({
         {/* Label row + trend */}
         <div className="flex justify-between items-baseline mt-2">
           <p className="text-xs font-editorial uppercase tracking-widest text-on-surface-variant font-medium">
-            {metricKey === "lead_time_for_changes" ? "Lead time (MR → release)" : label}
+            {metricKey === "lead_time_for_changes" ? "Median Lead Time" : label}
           </p>
           {!isLoading && !isError && trendPct !== null && trendPct !== undefined && (
             <span
