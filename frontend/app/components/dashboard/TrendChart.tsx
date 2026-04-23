@@ -203,7 +203,7 @@ const METRIC_FOOTNOTES: Record<TrendOverviewMetric, string> = {
   deployment_frequency:
     "Customer-release tags per week. Swimlane below lists release events on the timeline.",
   lead_time_for_changes:
-    "Weekly medians from snapshot data, stacked into dev/review and release wait (same release-only MR exclusion as the Median Lead Time KPI when that filter is enabled). Hover a period for segment values and total lead.",
+    "Weekly medians. Stacked dev/review and release-wait heights sum to the median lead time (same period) while preserving the ratio of the two segment medians.",
   change_failure_rate:
     "Share of customer releases in the window with at least one linked healthy production bug.",
   mttr_alpha:

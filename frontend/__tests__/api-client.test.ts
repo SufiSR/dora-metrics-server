@@ -63,6 +63,27 @@ describe("apiClient", () => {
     expect(result.data_points[0].lead_time_release_wait_hours).toBe(2.5);
   });
 
+  it("scales stacked dev/wait so hours sum to median total lead (DEVOPS-515)", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            period_end: "2026-04-20",
+            lead_time_minutes: 300,
+            dev_review_median_minutes: 60,
+            release_wait_median_minutes: 60,
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await apiClient.getMetricsHistory("30d");
+    expect(result.data_points[0].lead_time_for_changes).toBe(5);
+    expect(result.data_points[0].lead_time_dev_review_hours).toBeCloseTo(2.5);
+    expect(result.data_points[0].lead_time_release_wait_hours).toBeCloseTo(2.5);
+  });
+
   it("throws on non-OK response with detail", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

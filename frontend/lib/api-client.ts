@@ -136,45 +136,93 @@ function _sortHistoryPointsChronologically<T extends { date: string }>(points: T
   return [...points].sort((a, b) => _historyDateKey(a.date) - _historyDateKey(b.date));
 }
 
+/**
+ * DEVOPS-515: Median total lead, median dev/review, and median release-wait are independent.
+ * For stacked charts, scale the two segment values so they sum to the median total while
+ * preserving the ratio of the two segment medians.
+ */
+function leadTimeStackHoursFromMedians(
+  leadMinutes: number | null | undefined,
+  devReviewMinutes: number | null | undefined,
+  releaseWaitMinutes: number | null | undefined,
+): { devH: number | null; waitH: number | null } {
+  const totalH =
+    typeof leadMinutes === "number" && Number.isFinite(leadMinutes) ? leadMinutes / 60.0 : null;
+  if (totalH == null) {
+    return {
+      devH: typeof devReviewMinutes === "number" ? devReviewMinutes / 60.0 : null,
+      waitH: typeof releaseWaitMinutes === "number" ? releaseWaitMinutes / 60.0 : null,
+    };
+  }
+  if (
+    typeof devReviewMinutes === "number" &&
+    typeof releaseWaitMinutes === "number" &&
+    devReviewMinutes + releaseWaitMinutes > 0
+  ) {
+    const dH = devReviewMinutes / 60.0;
+    const wH = releaseWaitMinutes / 60.0;
+    const sum = dH + wH;
+    return {
+      devH: totalH * (dH / sum),
+      waitH: totalH * (wH / sum),
+    };
+  }
+  return {
+    devH: typeof devReviewMinutes === "number" ? devReviewMinutes / 60.0 : null,
+    waitH: typeof releaseWaitMinutes === "number" ? releaseWaitMinutes / 60.0 : null,
+  };
+}
+
 function normalizeMetricsHistory(raw: any, period: PeriodType): MetricsHistoryResponse {
   if (raw && "data_points" in raw) {
     const typed = raw as MetricsHistoryResponse;
-    return { ...typed, data_points: _sortHistoryPointsChronologically(typed.data_points) };
+    const mapped = typed.data_points.map((p) => {
+      const totalH = p.lead_time_for_changes;
+      const devH = p.lead_time_dev_review_hours ?? null;
+      const waitH = p.lead_time_release_wait_hours ?? null;
+      if (totalH == null || devH == null || waitH == null) return p;
+      const s = devH + waitH;
+      if (s <= 0) return p;
+      return {
+        ...p,
+        lead_time_dev_review_hours: totalH * (devH / s),
+        lead_time_release_wait_hours: totalH * (waitH / s),
+      };
+    });
+    return { ...typed, data_points: _sortHistoryPointsChronologically(mapped) };
   }
   const points = Array.isArray(raw?.data)
-    ? raw.data.map((item: any) => ({
-        date: item?.period_end ?? item?.period_start ?? "",
-        deployment_frequency:
-          typeof item?.deployment_frequency === "number"
-            ? item.deployment_frequency
-            : null,
-        lead_time_for_changes:
-          typeof item?.lead_time_minutes === "number"
-            ? item.lead_time_minutes / 60.0
-            : null,
-        lead_time_dev_review_hours:
-          typeof item?.dev_review_median_minutes === "number"
-            ? item.dev_review_median_minutes / 60.0
-            : null,
-        lead_time_release_wait_hours:
-          typeof item?.release_wait_median_minutes === "number"
-            ? item.release_wait_median_minutes / 60.0
-            : null,
-        lead_time_sample_count:
-          typeof item?.lead_time_sample_count === "number"
-            ? item.lead_time_sample_count
-            : null,
-        change_failure_rate:
-          typeof item?.change_failure_rate === "number"
-            ? item.change_failure_rate * 100.0
-            : null,
-        mttr_alpha:
-          typeof item?.mttr_alpha_minutes === "number"
-            ? item.mttr_alpha_minutes
-            : null,
-        lead_time_by_branch: item?.lead_time_by_branch ?? null,
-        lead_time_by_stream: item?.lead_time_by_stream ?? null,
-      }))
+    ? raw.data.map((item: any) => {
+        const leadMin = item?.lead_time_minutes;
+        const { devH, waitH } = leadTimeStackHoursFromMedians(
+          leadMin,
+          item?.dev_review_median_minutes,
+          item?.release_wait_median_minutes,
+        );
+        return {
+          date: item?.period_end ?? item?.period_start ?? "",
+          deployment_frequency:
+            typeof item?.deployment_frequency === "number"
+              ? item.deployment_frequency
+              : null,
+          lead_time_for_changes:
+            typeof leadMin === "number" && Number.isFinite(leadMin) ? leadMin / 60.0 : null,
+          lead_time_dev_review_hours: devH,
+          lead_time_release_wait_hours: waitH,
+          lead_time_sample_count:
+            typeof item?.lead_time_sample_count === "number"
+              ? item.lead_time_sample_count
+              : null,
+          change_failure_rate:
+            typeof item?.change_failure_rate === "number"
+              ? item.change_failure_rate * 100.0
+              : null,
+          mttr_alpha:
+            typeof item?.mttr_alpha_minutes === "number" ? item.mttr_alpha_minutes : null,
+          lead_time_by_branch: item?.lead_time_by_branch ?? null,
+          lead_time_by_stream: item?.lead_time_by_stream ?? null,
+        };
+      })
     : [];
   return {
     period,
