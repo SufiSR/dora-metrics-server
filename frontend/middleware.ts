@@ -22,8 +22,9 @@ export function middleware(request: NextRequest) {
   // Must match backend SessionMiddleware session_cookie (see app/main.py: dora_session).
   const sessionCookie = request.cookies.get("dora_session");
   if (!sessionCookie?.value) {
+    const nextPath = `${basePath}${normalizedPath === "/" ? "" : normalizedPath}`;
     const loginUrl = new URL(loginPath, request.url);
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.searchParams.set("next", nextPath || "/");
     return NextResponse.redirect(loginUrl);
   }
 

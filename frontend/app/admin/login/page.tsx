@@ -7,7 +7,23 @@ import { adminApiClient } from "@/lib/admin-api-client";
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/admin/config";
+  const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
+  const defaultNext = `${basePath}/admin/config`;
+  const requestedNext = searchParams.get("next");
+  const normalizedRequestedNext = requestedNext?.trim() ?? "";
+  const next = (() => {
+    if (!normalizedRequestedNext.startsWith("/")) {
+      return defaultNext;
+    }
+    // Keep navigation inside the app when deployed under a base path.
+    if (basePath && normalizedRequestedNext.startsWith(`${basePath}/`)) {
+      return normalizedRequestedNext;
+    }
+    if (basePath && normalizedRequestedNext.startsWith("/admin")) {
+      return `${basePath}${normalizedRequestedNext}`;
+    }
+    return normalizedRequestedNext;
+  })();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
