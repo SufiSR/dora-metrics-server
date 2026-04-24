@@ -9,9 +9,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
   const loginPath = `${basePath}/admin/login`;
+  const normalizedPath =
+    basePath && pathname.startsWith(basePath)
+      ? pathname.slice(basePath.length) || "/"
+      : pathname;
 
   // Allow login page through unconditionally
-  if (pathname === loginPath) {
+  if (normalizedPath === "/admin/login") {
     return NextResponse.next();
   }
 
@@ -27,5 +31,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dora/admin/:path*"],
+  matcher: ["/admin/:path*"],
 };
