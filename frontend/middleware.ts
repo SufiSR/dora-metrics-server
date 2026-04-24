@@ -7,16 +7,18 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
+  const loginPath = `${basePath}/admin/login`;
 
   // Allow login page through unconditionally
-  if (pathname === "/admin/login") {
+  if (pathname === loginPath) {
     return NextResponse.next();
   }
 
   // Must match backend SessionMiddleware session_cookie (see app/main.py: dora_session).
   const sessionCookie = request.cookies.get("dora_session");
   if (!sessionCookie?.value) {
-    const loginUrl = new URL("/admin/login", request.url);
+    const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -25,5 +27,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/dora/admin/:path*"],
 };
