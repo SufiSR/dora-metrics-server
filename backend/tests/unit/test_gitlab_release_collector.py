@@ -145,11 +145,12 @@ def test_extract_jira_key_falls_back_to_branch_then_description() -> None:
     assert jira_key_source == "description"
 
 
-def test_effective_commit_sha_prefers_merge_then_squash() -> None:
-    assert _effective_commit_sha("abc123", "def456") == "abc123"
-    assert _effective_commit_sha(None, "def456") == "def456"
-    assert _effective_commit_sha("", "def456") == "def456"
-    assert _effective_commit_sha(None, None) is None
+def test_effective_commit_sha_prefers_merge_then_squash_then_head() -> None:
+    assert _effective_commit_sha("abc123", "def456", "fff999") == "abc123"
+    assert _effective_commit_sha(None, "def456", "fff999") == "def456"
+    assert _effective_commit_sha("", "def456", "fff999") == "def456"
+    assert _effective_commit_sha(None, None, "fff999") == "fff999"
+    assert _effective_commit_sha(None, None, None) is None
 
 
 def test_deduplicate_merge_requests_by_gitlab_id() -> None:

@@ -157,8 +157,9 @@ def _extract_jira_key(
 def _effective_commit_sha(
     merge_commit_sha: str | None,
     squash_commit_sha: str | None,
+    head_sha: str | None,
 ) -> str | None:
-    return (merge_commit_sha or squash_commit_sha or "").strip() or None
+    return (merge_commit_sha or squash_commit_sha or head_sha or "").strip() or None
 
 
 def _parse_merge_request(raw: dict[str, Any]) -> dict[str, Any] | None:
@@ -193,7 +194,7 @@ def _parse_merge_request(raw: dict[str, Any]) -> dict[str, Any] | None:
         "head_sha": head_sha,
         "merge_commit_sha": merge_commit_sha,
         "squash_commit_sha": squash_commit_sha,
-        "effective_commit_sha": _effective_commit_sha(merge_commit_sha, squash_commit_sha),
+        "effective_commit_sha": _effective_commit_sha(merge_commit_sha, squash_commit_sha, head_sha),
         "jira_key": jira_key,
         "jira_key_source": jira_key_source,
     }
