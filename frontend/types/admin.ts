@@ -18,7 +18,8 @@ export interface MeResponse {
 export type WorklogRole = "pm" | "dev" | "qa";
 
 export interface JiraWorklogUserAssignment {
-  jira_account_id: string;
+  jira_account_id?: string | null;
+  author?: string | null;
   role: WorklogRole;
   team: string;
 }

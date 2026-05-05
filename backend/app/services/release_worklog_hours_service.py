@@ -18,11 +18,18 @@ def _seconds_as_hours(seconds: int) -> float:
     return round(seconds / 3600.0, 4)
 
 
-def _assignment_map(assignments: list[JiraWorklogUserAssignment]) -> dict[str, tuple[str, str]]:
-    out: dict[str, tuple[str, str]] = {}
+def _assignment_maps(
+    assignments: list[JiraWorklogUserAssignment],
+) -> tuple[dict[str, tuple[str, str]], dict[str, tuple[str, str]]]:
+    by_account: dict[str, tuple[str, str]] = {}
+    by_author: dict[str, tuple[str, str]] = {}
     for a in assignments:
-        out[a.jira_account_id.strip()] = (a.role, a.team.strip())
-    return out
+        pair = (a.role, a.team.strip())
+        if a.jira_account_id:
+            by_account[a.jira_account_id.strip()] = pair
+        if a.author:
+            by_author[a.author.strip().lower()] = pair
+    return by_account, by_author
 
 
 def _worklog_rows_for_release_tag(
@@ -68,7 +75,7 @@ def build_release_worklog_hours_response(
     deny_raw = read_worklog_denylist_from_settings(settings_json)
     deny_ids = frozenset(deny_raw)
     assignments = read_worklog_assignments_from_settings(settings_json)
-    by_account = _assignment_map(assignments)
+    by_account, by_author = _assignment_maps(assignments)
 
     rows = _worklog_rows_for_release_tag(
         db, repository_id=repository_id, tag_name=tag_name, deny_ids=deny_ids
@@ -79,13 +86,17 @@ def build_release_worklog_hours_response(
     unmapped_team_s = 0
     total_s = 0
 
-    for spent, acc_id, _author in rows:
+    for spent, acc_id, author in rows:
         total_s += spent
         role: str | None = None
         team: str | None = None
         if acc_id:
             key = acc_id.strip()
             pair = by_account.get(key)
+            if pair:
+                role, team = pair
+        if role is None and author:
+            pair = by_author.get(author.strip().lower())
             if pair:
                 role, team = pair
 

@@ -67,10 +67,12 @@ class AdminConfigPatch(BaseModel):
             return None
         seen: set[str] = set()
         for a in v:
-            aid = a.jira_account_id.strip()
-            if aid in seen:
-                raise ValueError(f"Duplicate jira_worklog_user_assignments entry: {aid}")
-            seen.add(aid)
+            aid = (a.jira_account_id or "").strip()
+            author = (a.author or "").strip().lower()
+            key = f"aid:{aid}" if aid else f"author:{author}"
+            if key in seen:
+                raise ValueError(f"Duplicate jira_worklog_user_assignments entry: {key}")
+            seen.add(key)
         return v
 
 

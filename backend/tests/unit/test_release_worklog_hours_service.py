@@ -154,3 +154,75 @@ def test_build_release_worklog_hours_aggregates_role_and_team_and_denylist() -> 
     assert out.unmapped_team_hours == 0.5
     # total excludes bot: 3600+7200+3600+1800 = 16200 -> 4.5h
     assert out.total_hours == 4.5
+
+
+def test_build_release_worklog_hours_falls_back_to_author_assignment_when_account_missing() -> None:
+    t = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    settings = {
+        "jira": {
+            "jira_worklog_user_assignments": [
+                {"author": "Legacy User", "role": "dev", "team": "LegacyTeam"},
+            ],
+        },
+    }
+    with _session() as db:
+        db.add(
+            Repository(
+                id=1,
+                gitlab_id=1,
+                name="app",
+                path="g/app",
+                default_branch="main",
+                active=True,
+            )
+        )
+        db.flush()
+        db.add(
+            ProductionBug(
+                id=1,
+                jira_key="BUG-2",
+                healthy=True,
+                jira_created_at_valid=True,
+                created_at=t,
+            )
+        )
+        db.flush()
+        db.add(
+            Release(
+                id=1,
+                repository_id=1,
+                tag_name="v9.2.0",
+                customer_release=True,
+                version_major=9,
+                version_minor=2,
+                version_patch=0,
+                commit_sha="b" * 40,
+                committed_at=t,
+            )
+        )
+        db.flush()
+        db.add(BugRelease(bug_id=1, release_id=1))
+        db.add(
+            IssueWorklog(
+                id=10,
+                bug_id=1,
+                jira_worklog_id="w10",
+                jira_account_id=None,
+                author="Legacy User",
+                started=t,
+                time_spent_seconds=3600,
+            )
+        )
+        db.commit()
+
+        out = build_release_worklog_hours_response(
+            db,
+            repository_id=1,
+            tag_name="v9.2.0",
+            settings_json=settings,
+        )
+
+    assert out is not None
+    assert out.hours_by_role.dev == 1.0
+    by_team = {r.team: r.hours for r in out.hours_by_team}
+    assert by_team["LegacyTeam"] == 1.0

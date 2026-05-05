@@ -48,9 +48,11 @@ def read_worklog_assignments_from_settings(
 def validate_unique_assignments(assignments: list[JiraWorklogUserAssignment]) -> None:
     seen: set[str] = set()
     for a in assignments:
-        key = a.jira_account_id.strip()
+        aid = (a.jira_account_id or "").strip()
+        author = (a.author or "").strip().lower()
+        key = f"aid:{aid}" if aid else f"author:{author}"
         if key in seen:
-            raise ValueError(f"Duplicate jira_account_id in assignments: {key}")
+            raise ValueError(f"Duplicate assignment key in assignments: {key}")
         seen.add(key)
 
 

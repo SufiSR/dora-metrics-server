@@ -7,14 +7,20 @@ import type { AdminConfigResponse, WorklogAuthorListItem, WorklogRole } from "@/
 
 type RoleSelect = WorklogRole | "";
 
-type DraftRow = { role: RoleSelect; team: string };
+type DraftRow = { role: RoleSelect; team: string; jira_account_id: string | null; author: string | null };
+
+function draftKey(accountId: string | null, author: string | null): string {
+  if (accountId && accountId.trim()) return `aid:${accountId.trim()}`;
+  if (author && author.trim()) return `author:${author.trim().toLowerCase()}`;
+  return "unknown:";
+}
 
 export default function UserAssignmentsPage() {
   const router = useRouter();
   const [config, setConfig] = useState<AdminConfigResponse | null>(null);
   const [authors, setAuthors] = useState<WorklogAuthorListItem[]>([]);
   const [authorsError, setAuthorsError] = useState<string | null>(null);
-  const [draftByAccount, setDraftByAccount] = useState<Record<string, DraftRow>>({});
+  const [draftByKey, setDraftByKey] = useState<Record<string, DraftRow>>({});
   const [denylistText, setDenylistText] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -31,9 +37,17 @@ export default function UserAssignmentsPage() {
         setConfig(cfg);
         const m: Record<string, DraftRow> = {};
         for (const a of cfg.jira_worklog_user_assignments) {
-          m[a.jira_account_id] = { role: a.role, team: a.team };
+          const key = draftKey(a.jira_account_id ?? null, a.author ?? null);
+          if (key !== "unknown:") {
+            m[key] = {
+              role: a.role,
+              team: a.team,
+              jira_account_id: a.jira_account_id ?? null,
+              author: a.author ?? null,
+            };
+          }
         }
-        setDraftByAccount(m);
+        setDraftByKey(m);
         setDenylistText(cfg.jira_worklog_author_denylist.join("\n"));
         try {
           const authorPage = await adminApiClient.getWorklogAuthors({ page: 0, size: 500 });
@@ -48,20 +62,20 @@ export default function UserAssignmentsPage() {
     })();
   }, [router]);
 
-  const updateDraft = useCallback((accountId: string, next: DraftRow) => {
-    setDraftByAccount((prev) => ({ ...prev, [accountId]: next }));
+  const updateDraft = useCallback((key: string, next: DraftRow) => {
+    setDraftByKey((prev) => ({ ...prev, [key]: next }));
     setSaveState("idle");
   }, []);
 
   const tableRows = useMemo(() => {
     const keysFromAuthors = new Set(
-      authors.map((a) => a.jira_account_id).filter((x): x is string => Boolean(x)),
+      authors.map((a) => draftKey(a.jira_account_id ?? null, a.author ?? null)),
     );
-    const orphanIds = Object.keys(draftByAccount).filter((id) => !keysFromAuthors.has(id));
-    const synthetic: WorklogAuthorListItem[] = orphanIds.map((id) => ({
-      jira_account_id: id,
-      author: null,
-    }));
+    const orphanIds = Object.keys(draftByKey).filter((id) => !keysFromAuthors.has(id));
+    const synthetic: WorklogAuthorListItem[] = orphanIds.map((id) => {
+      const d = draftByKey[id];
+      return { jira_account_id: d?.jira_account_id ?? null, author: d?.author ?? null };
+    });
     const combined = [...authors, ...synthetic];
     combined.sort((a, b) => {
       const an = (a.author ?? "").toLowerCase();
@@ -70,14 +84,19 @@ export default function UserAssignmentsPage() {
       return (a.jira_account_id ?? "").localeCompare(b.jira_account_id ?? "");
     });
     return combined;
-  }, [authors, draftByAccount]);
+  }, [authors, draftByKey]);
 
   const handleSave = useCallback(async () => {
     if (!config) return;
-    const assignments = Object.entries(draftByAccount)
-      .filter(([, row]) => row.role && row.team.trim())
-      .map(([id, row]) => ({
-        jira_account_id: id,
+    const assignments = Object.values(draftByKey)
+      .filter(
+        (row) =>
+          row.role &&
+          ((row.jira_account_id && row.jira_account_id.trim()) || (row.author && row.author.trim())),
+      )
+      .map((row) => ({
+        jira_account_id: row.jira_account_id,
+        author: row.author,
         role: row.role as WorklogRole,
         team: row.team.trim(),
       }));
@@ -102,7 +121,7 @@ export default function UserAssignmentsPage() {
       setSaveState("error");
       setSaveError(err instanceof Error ? err.message : "Save failed");
     }
-  }, [config, draftByAccount, denylistText]);
+  }, [config, draftByKey, denylistText]);
 
   if (!config) {
     return (
@@ -169,16 +188,20 @@ export default function UserAssignmentsPage() {
             </thead>
             <tbody>
               {tableRows.map((row) => {
-                const aid = row.jira_account_id ?? "";
+                const aid = row.jira_account_id ?? null;
+                const author = row.author ?? null;
+                const key = draftKey(aid, author);
                 const draft =
-                  draftByAccount[aid] ??
+                  draftByKey[key] ??
                   ({
                     role: "" as RoleSelect,
                     team: "",
+                    jira_account_id: aid,
+                    author,
                   } satisfies DraftRow);
-                const editable = aid.length > 0;
+                const editable = key !== "unknown:";
                 return (
-                  <tr key={aid || `anon-${row.author ?? "?"}`} className="border-b border-outline-variant/30">
+                  <tr key={key} className="border-b border-outline-variant/30">
                     <td className="py-2 pr-3 font-mono text-[11px] break-all">{aid || "—"}</td>
                     <td className="py-2 pr-3">{row.author ?? "—"}</td>
                     <td className="py-2 pr-3">
@@ -187,9 +210,11 @@ export default function UserAssignmentsPage() {
                           className="rounded border border-outline-variant bg-surface-container px-2 py-1 text-on-surface"
                           value={draft.role}
                           onChange={(e) =>
-                            updateDraft(aid, {
+                            updateDraft(key, {
                               role: e.target.value as RoleSelect,
                               team: draft.team,
+                              jira_account_id: draft.jira_account_id,
+                              author: draft.author,
                             })
                           }
                         >
@@ -209,7 +234,12 @@ export default function UserAssignmentsPage() {
                           className="w-full min-w-[120px] rounded border border-outline-variant bg-surface-container px-2 py-1 text-on-surface"
                           value={draft.team}
                           onChange={(e) =>
-                            updateDraft(aid, { role: draft.role, team: e.target.value })
+                            updateDraft(key, {
+                              role: draft.role,
+                              team: e.target.value,
+                              jira_account_id: draft.jira_account_id,
+                              author: draft.author,
+                            })
                           }
                           placeholder="Team name"
                         />
