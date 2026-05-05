@@ -92,18 +92,23 @@ def list_distinct_worklog_authors_page(
     page: int,
     size: int,
 ) -> tuple[list[tuple[str | None, str | None]], int]:
+    # Postgres: SELECT DISTINCT ... ORDER BY expressions not in SELECT is invalid (42P10).
+    # Distinct pairs in a subquery, then sort/paginate in the outer SELECT.
     base = _distinct_authors_select(denylist)
-    sub = base.subquery()
-    total = int(db.execute(select(func.count()).select_from(sub)).scalar_one())
-    sorted_rows = (
-        base.order_by(
-            func.lower(func.coalesce(IssueWorklog.author, "")).asc(),
-            func.coalesce(IssueWorklog.jira_account_id, "").asc(),
+    authors_sq = base.subquery()
+    total = int(db.execute(select(func.count()).select_from(authors_sq)).scalar_one())
+
+    stmt = (
+        select(authors_sq.c.jira_account_id, authors_sq.c.author)
+        .select_from(authors_sq)
+        .order_by(
+            func.lower(func.coalesce(authors_sq.c.author, "")).asc(),
+            func.coalesce(authors_sq.c.jira_account_id, "").asc(),
         )
         .offset(page * size)
         .limit(size)
     )
-    rows = db.execute(sorted_rows).all()
+    rows = db.execute(stmt).all()
     tuples = [(r[0], r[1]) for r in rows]
     return tuples, total
 
