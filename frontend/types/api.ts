@@ -151,6 +151,7 @@ export interface ReleaseWorklogHoursByRole {
   pm: number;
   dev: number;
   qa: number;
+  sup: number;
   unmapped: number;
 }
 

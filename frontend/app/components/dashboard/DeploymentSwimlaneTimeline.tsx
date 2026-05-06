@@ -246,6 +246,7 @@ export function DeploymentSwimlaneTimeline() {
                           <li>PM: {formatHours(worklogQ.data.hours_by_role.pm)}</li>
                           <li>DEV: {formatHours(worklogQ.data.hours_by_role.dev)}</li>
                           <li>QA: {formatHours(worklogQ.data.hours_by_role.qa)}</li>
+                          <li>SUP: {formatHours(worklogQ.data.hours_by_role.sup)}</li>
                           <li>Unmapped role: {formatHours(worklogQ.data.hours_by_role.unmapped)}</li>
                         </ul>
                       </div>

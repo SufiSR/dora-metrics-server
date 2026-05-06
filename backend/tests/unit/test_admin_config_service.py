@@ -176,6 +176,30 @@ def test_patch_admin_configuration_stores_role_only_assignment_without_team(
         ]
 
 
+def test_patch_admin_configuration_stores_sup_role_assignment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", "devops-438-key")
+    monkeypatch.setattr(config_service, "_load_yaml_config", lambda: {})
+    monkeypatch.setattr(acs, "reschedule_nightly_sync", lambda _cfg: None)
+    with _session() as db:
+        db.add(AppConfiguration(id=1, settings_json={}))
+        db.commit()
+        acs.patch_admin_configuration(
+            db,
+            AdminConfigPatch(
+                jira_worklog_user_assignments=[
+                    {"jira_account_id": "sup-1", "role": "sup", "team": "Support"},
+                ],
+            ),
+        )
+        row = db.get(AppConfiguration, 1)
+        assert row is not None
+        assert row.settings_json["jira"]["jira_worklog_user_assignments"] == [
+            {"jira_account_id": "sup-1", "role": "sup", "team": "Support"},
+        ]
+
+
 def test_patch_admin_configuration_encrypts_tokens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

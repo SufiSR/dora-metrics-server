@@ -15,7 +15,7 @@ export interface MeResponse {
   username: string | null;
 }
 
-export type WorklogRole = "pm" | "dev" | "qa";
+export type WorklogRole = "pm" | "dev" | "qa" | "sup";
 
 export interface JiraWorklogUserAssignment {
   jira_account_id?: string | null;

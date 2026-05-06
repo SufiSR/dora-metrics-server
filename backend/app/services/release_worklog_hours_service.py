@@ -81,7 +81,7 @@ def build_release_worklog_hours_response(
         db, repository_id=repository_id, tag_name=tag_name, deny_ids=deny_ids
     )
 
-    pm_s = dev_s = qa_s = unmapped_role_s = 0
+    pm_s = dev_s = qa_s = sup_s = unmapped_role_s = 0
     team_seconds: dict[str, int] = {}
     unmapped_team_s = 0
     total_s = 0
@@ -106,6 +106,8 @@ def build_release_worklog_hours_response(
             dev_s += spent
         elif role == "qa":
             qa_s += spent
+        elif role == "sup":
+            sup_s += spent
         else:
             unmapped_role_s += spent
 
@@ -126,6 +128,7 @@ def build_release_worklog_hours_response(
             pm=_seconds_as_hours(pm_s),
             dev=_seconds_as_hours(dev_s),
             qa=_seconds_as_hours(qa_s),
+            sup=_seconds_as_hours(sup_s),
             unmapped=_seconds_as_hours(unmapped_role_s),
         ),
         hours_by_team=team_rows,

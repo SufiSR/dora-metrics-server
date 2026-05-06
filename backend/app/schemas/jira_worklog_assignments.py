@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
-WorklogRole = Literal["pm", "dev", "qa"]
+WorklogRole = Literal["pm", "dev", "qa", "sup"]
 
 
 class JiraWorklogUserAssignment(BaseModel):

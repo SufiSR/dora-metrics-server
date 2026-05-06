@@ -25,6 +25,7 @@ class ReleaseWorklogHoursByRole(BaseModel):
     pm: float
     dev: float
     qa: float
+    sup: float
     unmapped: float
 
 

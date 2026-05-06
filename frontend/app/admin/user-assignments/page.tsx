@@ -132,20 +132,23 @@ export default function UserAssignmentsPage() {
   }
 
   return (
-    <main className="pl-72 pr-10 py-10 max-w-5xl space-y-8">
-      <header>
-        <h1 className="text-2xl font-editorial font-bold text-on-surface tracking-tight">
+    <div className="w-full pb-24 space-y-10">
+      <header className="space-y-3">
+        <p className="text-[10px] font-editorial font-bold uppercase tracking-[0.1em] text-primary">
+          Operations
+        </p>
+        <h1 className="text-5xl font-editorial font-bold tracking-tight text-on-surface">
           User assignments
         </h1>
-        <p className="text-sm text-on-surface-variant mt-2 max-w-2xl">
-          Map Jira worklog authors (by account ID) to PM, DEV, or QA and a team label. Only rows with
-          a Jira account ID can be persisted. Saved denylist IDs are excluded from author discovery and from
-          public worklog aggregates.
+        <p className="text-on-surface-variant text-sm max-w-3xl">
+          Map Jira worklog authors to PM, DEV, QA, or SUP and optionally assign a team label. Works for
+          both account-ID-based and legacy author-name-only worklogs. Saved denylist IDs are excluded
+          from author discovery and public worklog aggregates.
         </p>
       </header>
 
-      <section className="rounded-xl border border-outline-variant/50 bg-surface-container-lowest p-6 space-y-4">
-        <h2 className="text-sm font-editorial font-semibold text-on-surface">Author denylist</h2>
+      <section className="rounded-2xl bg-surface-container-lowest p-6 border border-outline-variant space-y-4">
+        <h2 className="text-xl font-editorial font-semibold text-on-surface">Author denylist</h2>
         <p className="text-xs text-on-surface-variant">
           One Jira account ID per line (typically automation/service accounts).
         </p>
@@ -157,16 +160,16 @@ export default function UserAssignmentsPage() {
         />
       </section>
 
-      <section className="rounded-xl border border-outline-variant/50 bg-surface-container-lowest p-6 space-y-4">
+      <section className="rounded-2xl bg-surface-container-lowest p-6 border border-outline-variant space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-editorial font-semibold text-on-surface">
+          <h2 className="text-xl font-editorial font-semibold text-on-surface">
             Assignments ({tableRows.length} rows)
           </h2>
           <button
             type="button"
             onClick={() => handleSave()}
             disabled={saveState === "saving"}
-            className="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-editorial font-medium disabled:opacity-50"
+            className="px-6 py-2 rounded-xl bg-primary text-on-primary text-sm font-editorial font-bold uppercase tracking-wider disabled:opacity-50"
           >
             {saveState === "saving" ? "Saving…" : "Save"}
           </button>
@@ -177,9 +180,9 @@ export default function UserAssignmentsPage() {
         )}
         {saveError && <p className="text-xs text-error">{saveError}</p>}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse">
+          <table className="w-full text-sm text-left border-collapse">
             <thead>
-              <tr className="border-b border-outline-variant/60 text-on-surface-variant uppercase tracking-wider">
+              <tr className="border-b border-outline-variant text-on-surface-variant">
                 <th className="py-2 pr-3 font-medium">Account ID</th>
                 <th className="py-2 pr-3 font-medium">Display name</th>
                 <th className="py-2 pr-3 font-medium">Role</th>
@@ -222,6 +225,7 @@ export default function UserAssignmentsPage() {
                           <option value="pm">PM</option>
                           <option value="dev">DEV</option>
                           <option value="qa">QA</option>
+                          <option value="sup">SUP</option>
                         </select>
                       ) : (
                         <span className="text-on-surface-variant">N/A</span>
@@ -254,6 +258,6 @@ export default function UserAssignmentsPage() {
           </table>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

@@ -147,6 +147,7 @@ def test_build_release_worklog_hours_aggregates_role_and_team_and_denylist() -> 
     assert out.hours_by_role.pm == 1.0
     assert out.hours_by_role.dev == 2.0
     assert out.hours_by_role.qa == 1.0
+    assert out.hours_by_role.sup == 0.0
     assert out.hours_by_role.unmapped == 0.5
     by_team = {r.team: r.hours for r in out.hours_by_team}
     assert by_team["TeamA"] == 3.0
@@ -224,5 +225,6 @@ def test_build_release_worklog_hours_falls_back_to_author_assignment_when_accoun
 
     assert out is not None
     assert out.hours_by_role.dev == 1.0
+    assert out.hours_by_role.sup == 0.0
     by_team = {r.team: r.hours for r in out.hours_by_team}
     assert by_team["LegacyTeam"] == 1.0
